@@ -1,0 +1,46 @@
+import json
+import random
+
+n=10 #Number of json items variable
+choices=['USA', 'INDIA', 'CANADA', 'CHINA', 'UK'] #set choices for 'location_list function'
+
+def name_list(name: str):
+    employees=[]
+    for i in range(1, n):
+        names=f'{name}-{i}'
+        employees.append(names)
+    return employees
+
+def random_integers(start: int, end: int):
+    random_empId = []
+    for _ in range(1, n):
+        empId = random.randint(start, end)
+        random_empId.append(empId)
+    return random_empId
+
+def location_list():
+    locations=[]
+    for _ in range(1, n):
+        location = random.choice(choices)
+        locations.append(location)
+    return locations
+
+emp_ids = random_integers(100, 200)
+names = name_list('employee')
+ages = random_integers(24, 45)
+countries = location_list()
+
+result=[]
+for emp_id, name, age, country in zip(emp_ids, names, ages, countries):
+    data = {
+            "emp_id": emp_id,
+            "name": name,
+            "age": age,
+            "location": country
+            }
+    result.append(data)
+
+json_object = json.dumps(result, indent=4)
+
+with open('sample2.json', 'w') as outfile:
+    outfile.write(json_object)

@@ -1,0 +1,16 @@
+mumbai_region_key: mumbai-key
+mumbai_ubuntu_instance_type: t2.micro
+mumbai_ubuntu_ami_id: ami-0851b76e8b1bce90b
+mumbai_ubuntu_ec2_count: 2
+mumbai_ubuntu_ec2_tag_key: ubuntu
+mumbai_ubuntu_ec2_tag_value: webserver
+
+mumbai_subnet: subnet-0d1003b6d85c91568
+mumbai_security_group: sg-05bc8adcf00d08f5e
+region: ap-south-1
+
+
+
+
+
+

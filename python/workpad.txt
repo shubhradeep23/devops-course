@@ -1,0 +1,66 @@
+lists are ordered whereas dictionaries are unordered
+elements/values inside tuples can be modified with builtin python functions add, remove, pop.
+reverse a string with some_string[::-1]
+--------------------------------------------
+# Palidromes are words which even if reversed will not change the word itself as the word stays the same even in reverse order.
+#the below function take a list & outputs only the words in the list which are palidromes
+
+def palidrome(arr:[]):
+    return [word for word in arr if word == word[::-1]]
+
+words_list = ['sas', 'pop', 'shubro', 'sunny']
+
+print(palidrome(words_list))
+---------------------------------------------
+# Function which add all numbers in a list
+
+def add_all(arr:[]):
+    total=0
+    for i in arr:
+        total += i
+    return total
+
+num_list = [2,3,4]
+print(add_all(num_list))
+--------------------------------------------
+some common builtin python functions
+split(), add(), lower(), upper(), count(), len()
+-------------------------------------------
+#Global & local scope: Variable scopes
+
+x = 2  # Global variable/scope
+
+def func():
+    y = 1  # local variable/scope
+    return y
+
+def func2():
+    global z
+    z = 3
+    def inner_func():
+        return x + z
+    return inner_func()
+
+func2()
+print(z)
+print(func2())
+-----------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

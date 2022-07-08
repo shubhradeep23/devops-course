@@ -1,0 +1,28 @@
+- hosts: localhost
+  vars:
+    users:
+      - name: john smith
+        username: jsmith
+      - name: jane doe
+        username: jdoe
+  tasks:
+    - name: ensure user exists
+      user:
+        name: "{{ user.username }}"
+        comment: "{{ user.name }}"
+        state: present
+      become: true
+      loop: "{{ users }}"
+      loop_control:
+        loop_var: user
+
+    - name: create .gitconfig for each user
+      template:
+        src: files/.gitconfig.j2
+        dest: "/home/{{ user.username }}/.gitconfig"
+        owner: "{{ user.username }}"
+        group: "{{ user.username }}"
+        mode: 0644
+      loop: "{{ users }}"
+      loop_control:
+        loop_var: user

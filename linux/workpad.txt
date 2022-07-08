@@ -1,0 +1,228 @@
+https://linuxize.com/post/how-to-add-user-to-group-in-linux/
+
+pwd  #Current working directory
+ls
+ls -l
+ls -la
+ls -l | grep .ssh
+ls /home/ubuntu
+ls /etc
+ls ~  #command to list the contents in the users's home directory
+ls -d */  #command to list only directories
+ls *   #command to list the contents of the directory with it's subdirectories
+ls -R  #command to list all files and directories with their corresponding subdirectories down to the last file
+ls -s  #command (the s is lowercase) to list files or directories with their sizes
+ls -l
+ls -lh  #command to list the files or directories in the same table format above, but with another column representing the size of each file/directory
+ls -t  #command to list files or directories and sort by last modified date in descending order (biggest to smallest).
+ls -tr  #to reverse the sorting order 
+ls -S   #(the S is uppercase) command to list files or directories and sort by size in descending order (biggest to smallest).
+ls -Sr  #lag to reverse the sorting order
+ls > output.txt
+
+cp Src_file Dest_file
+cp Src_file1 Src_file2 Src_file3 Dest_directory
+cp -R Src_directory Dest_directory   # R, to indicate the recursive copying of directories.
+-i(interactive): i stands for Interactive copying. With this option system first warns the user before overwriting the destination file. cp prompts for a response, if you press y then it overwrites the file and with any other option leave it uncopied.
+$ cp -i a.txt b.txt
+cp: overwrite 'b.txt'? y
+$ cat b.txt
+GFG
+--------------------------------
+
+mv [Option] source destination
+mv a.txt b.txt  #Renames a.txt file to b.txt
+
+$ ls
+b.txt  c.txt  d.txt  geek.txt
+
+$ cat geek.txt
+India
+
+$ cat b.txt
+geeksforgeeks
+
+$ mv geek.txt b.txt
+
+$ ls
+b.txt  c.txt  d.txt
+
+$ cat b.txt
+India
+-------------------------------
+-f (Force): mv prompts for confirmation overwriting the destination file if a file is write-protected. The -f option overrides this minor protection and overwrites the destination file forcefully and deletes the source file. 
+
+$ ls
+b.txt  c.txt  d.txt  geek.txt
+
+$ cat b.txt
+geeksforgeeks
+
+$ ls -l b.txt
+-r--r--r--+ 1 User User 13 Jan  9 13:37 b.txt
+
+$ mv geek.txt b.txt
+mv: replace 'b.txt', overriding mode 0444 (r--r--r--)? n
+
+$ ls
+b.txt  c.txt  d.txt  geek.txt
+
+$ mv -f geek.txt b.txt
+
+$ ls
+b.txt  c.txt  d.txt
+
+$ cat b.txt
+India
+----------------------------------------
+-n (no-clobber): With -n option, mv prevent an existing file from being overwritten. 
+In the following example the effect is for nothing to happen as a file would be overwritten. 
+
+$ ls
+b.txt  c.txt  d.txt  geek.txt
+
+$ cat b.txt
+geeksforgeeks
+
+$ mv -n geek.txt b.txt
+
+$ ls
+b.txt  c.txt  d.txt  geek.txt
+
+$ cat b.txt
+geeksforgeeks
+---------------------------------
+for i in {a..f}; do echo "hello world" > $i.txt; done
+OR
+for i in {a..f}; do touch $i.txt; done
+
+rm a.txt
+rm b.txt c.txt
+rm -i d.txt #Interactive deletion where you will be prompted if you are sure you want to delete
+rm -f e.txt  #force delete
+rm -r folderA  #deltes all files & directories inside folderA with -r option
+---------------------------------
+echo -e "Geeks \bfor \bGeeks"  #\b : it removes all the spaces in between the text
+echo -e "Geeks \cfor Geeks"  #\c : suppress trailing new line with backspace interpretor ‘-e‘ to continue without emitting new line.
+echo -e "Geeks \tfor \tGeeks"  #\t : this option is used to create horizontal tab spaces.
+echo -e "Geeks \rfor Geeks"  #\r : carriage return with backspace interpretor ‘-e‘ to have specified carriage return in output.
+echo -e "Geeks \vfor \vGeeks  #\v : this option is used to create vertical tab spaces.
+echo -e "\aGeeks for Geeks  #\a : alert return with backspace interpretor ‘-e‘ to have sound alert.
+echo *  #this command will print all files/folders, similar to ls command .
+echo -n "Geeks for Geeks"  #-n : this option is used to omit echoing trailing newline .
+-----------------------------------
+cat file1
+cat file1 file2
+cat -n filename  #To view contents of a file preceding with line numbers. 
+cat > newfile   #Create a file 
+cat [filename-whose-contents-is-to-be-copied] > [destination-filename]
+cat -s geeks.txt  #Cat command can suppress repeated empty lines in output 
+cat file1 >> file2  #Cat command can append the contents of one file to the end of another file. 
+cat -E "filename"  #Cat command can highlight the end of line
+cat -- "-dashfile"  #Cat command to open dashed files or file names starting with -
+cat "filename" | more  #Cat command if the file has a lot of content and can’t fit in the terminal
+cat "filename1" "filename2" "filename3" > "merged_filename"  #Cat command to merge the contents of multiple files
+cat *.txt  #Cat command to display the content of all text files in the folder
+cat >> geeks.txt  #Cat command to write in an already existing file
+--------------------------------------------
+Less command is a Linux utility that can be used to read the contents of a text file one page(one screen) at a time. It has faster access because if file is large it doesn’t access the complete file, but accesses it page by page. 
+For example, if it’s a large file and you are reading it using any text editor, then the complete file will be loaded to main memory. The less command doesn’t load the entire file, but loads it part by part which makes it faster. 
+
+less filename
+dmesg | less
+-E : causes less to automatically exit the first time it reaches end of file. 
+-f : forces non-regular file to open. 
+-F : causes less to exit if entire file can be displayed on first screen 
+-g : highlight the string which was found by last search command 
+-G : suppresses all highlighting of strings found by search commands 
+-i : cause searches to ignore case 
+-n : suppresses line numbers 
+-p pattern : it tells less to start at the first occurrence of pattern in the file 
+-s : causes consecutive blank lines to be squeezed into a single blank line
+------------------------------------------
+$cat > geekfile.txt
+unix is great os. unix is opensource. unix is free os.
+learn operating system.
+Unix linux which one you choose.
+uNix is easy to learn.unix is a multiuser os.Learn unix .unix is a powerful.
+
+$grep -i "UNix" geekfile.txt  #Case insensitive search
+$grep -c "unix" geekfile.txt  #Displaying the count of number of matches
+$grep -l "unix" *  #Display the file names that matches the pattern
+$grep -l "unix" f1.txt f2.txt f3.xt f4.txt  #same as above command
+$grep -w "unix" geekfile.txt  #Checking for the whole words in a file
+$grep -o "unix" geekfile.txt  #Displaying only the matched pattern
+$grep -n "unix" geekfile.txt  #Show line number while displaying the output using grep -n
+$grep -v "unix" geekfile.txt  #Inverting the pattern match
+$grep "^unix" geekfile.txt  #Matching the lines that start with a string
+$grep "os$" geekfile.txt  #Matching the lines that end with a string
+$grep –e "Agarwal" –e "Aggarwal" –e "Agrawal" geekfile.txt  #Specifies expression with -e option. Can use multiple times
+$grep -R [Search] [directory]
+$grep -iR geeks /home/geeks  #Search recursively for a pattern in the directory
+---------------------------------------------------
+mkdir [options...] [directories ...]
+mkdir --help
+mkdir -v [directories]
+mkdir -v one two three  #creates 3 directories
+-p: A flag which enables the command to create parent directories as necessary. If the directories exist, no error is specified. 
+mkdir -p [directories]
+mkdir -p first/second/third
+If the first and second directories do not exist, due to the -p option, mkdir will create these directories for us. If we do not specify the -p option, and request the creation of directories, where parent directory doesn’t exist, we will get the following output – 
+
+-m: This option is used to set the file modes, i.e. permissions, etc. for the created directories. The syntax of the mode is the same as the chmod command. 
+mkdir -m a=rwx [directories]
+-----------------------------------------------------
+touch command: It is used to create a file without any content. The file created using touch command is empty. This command can be used when the user doesn’t have data to store at the time of file creation.
+touch file_name
+touch File1_name File2_name File3_name 
+touch -c fileName  #touch -c : This command is used to check whether a file is created or not. If not created then don’t create it. This command avoids creating files.
+------------------------------------------------------
+man + help
+man command in Linux is used to display the user manual of any command that we can run on the terminal. It provides a detailed view of the command which includes NAME, SYNOPSIS, DESCRIPTION, OPTIONS, EXIT STATUS, RETURN VALUES, ERRORS, FILES, VERSIONS, EXAMPLES, AUTHORS and SEE ALSO.
+$ man [COMMAND NAME]
+$ man printf
+$ man -f ls
+Options for help command
+-d option : It is used when you just want to get an overview about any shell built-in command i.e it only gives short description.
+-m option : It displays usage in pseudo-manpage format.
+-s option : It just displays only a short usage synopsis for each topic matching.
+------------------------------------------------------
+chmod: https://www.geeksforgeeks.org/chmod-command-linux/
+chown: Refer to 'Linux Permission' file
+
+------------------------------------------------------
+https://linuxconfig.org/bash-scripting-tutorial
+cheatsheet: https://devhints.io/bash
+https://linuxconfig.org/bash-scripting-tutorial-for-beginners
+https://linuxhint.com/3hr_bash_tutorial/
+--------------------------------------------------
+root@ip-172-31-0-217:~# cat for-loop.sh
+#! /bin/bash
+
+find_element=$1
+some_list=('thing1' 'thing2' 'thing3' 'thing4' 'thing5')
+for i in "${some_list[@]}"; do
+  if [ "$i -eq thing3" ]; then
+      echo "$find_element is present in the list"
+      break
+  fi
+done
+------
+## VIM editor
+https://www.geeksforgeeks.org/getting-started-with-vim-editor-in-linux/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

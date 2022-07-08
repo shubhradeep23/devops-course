@@ -1,0 +1,82 @@
+Version Control System
+Source Code Management
+
+Clone: Download a remote repo into your local machine
+add: Track your files & changes in git
+commit: Save your files in git
+push: Upload git commits to a remote repo like github
+pull: download changes from remote repo to local machine 
+
+#Passwordless Authentication to Github from Linux or Mac machines:
+Create a github repo with README.md> clone the repo on local machine> notice the hidden .git directory> create index.html> git status> git add> git commit -m "first commit> "
+$ ssh-keygen -t rsa -b 4096 -C "email@example.com"
+copy the contents of .pub key to github
+
+#Practical for pushing local changes to a remote repo: create local repo, then create empty repo (without README.md) in github. follow the instructions in github to push the local changes to github.
+
+General git workflow: write code> stage changes> commit changes> push changes> make a pull request
+
+## Branch: refer to diagram in file 'Branching Diagram' under git directory
+git branch
+git checkout -b <new-feature-branch-name>  # -b create a new branch & switches to the new branch 
+git branch
+git checkout <branch-name>
+
+commit the changes to feature branch (add, commit, push)
+git push --set-upstream origin <feature-branch-name>
+git diff 
+git merge OR raise PR (pull request)
+delete the feature branch after changes are merged to master
+git branch -d <feature-branch>
+
+## Merge Conflicts: simulate a merge conflict by creating 2 feature branches, adding changes in feature1 & feature2 branches & commit one of those changes one after another.
+use git merge to download the latest changes in master & simultaneously push local changes to master
+
+## Undo staging (after git add)
+git reset <file-name-to-be-undone>
+
+#to undo after git commit:
+git reset HEAD~1  (~1 would go back 1 step from commit and undo the changes which resets the changes made in git add)
+git log  #commit ids in reverse chronological order where top most commit is the latest
+
+#to revert to a specific commit, copy the commit id from git logs output:
+git reset <commit-id-hash>
+
+git reset --hard <commit-id-hash>  #completely removes all changes after commit-id specified
+ & is refered to as a hard reset
+
+## Fork: copy a remote github repo to make changes & raise a PR to request for changes to be merged to the original repo which was forked
+
+## Rebase vs Merge: rebase gives a cleaner history by consolidating commits from other branches into a single branch
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

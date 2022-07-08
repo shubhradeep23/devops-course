@@ -1,0 +1,7 @@
+ip: "{{ inventory_hostname }}"
+os_name: "{{ ansible_distribution }}"
+
+# Custom Variables
+somevar: foo
+anothervar: bar
+

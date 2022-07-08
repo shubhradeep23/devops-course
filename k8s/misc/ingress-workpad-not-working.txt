@@ -1,0 +1,158 @@
+## https://matthewpalmer.net/kubernetes-app-developer/articles/kubernetes-ingress-guide-nginx-example.html
+## Ingress details
+Dockerfile
+----------
+FROM nginx:alpine
+COPY ingress/nginx.conf /etc/nginx/nginx.conf
+COPY ingress/index.html /usr/share/nginx/html
+----------
+root@ip-172-31-94-152:~# cat nginx-html/index.html
+<html>
+  <head>
+    <title>My App</title>
+  </head>
+  <body>
+    <h1 style="color:blue;">App Feature Version 2</h1>
+  </body>
+</html>
+----------------
+docker tag 1d61fca25b29 shubhradeepghosh23/html-website-nginx:order
+docker push shubhradeepghosh23/html-website-nginx:order
+docker tag 4c1ca34ce53f shubhradeepghosh23/html-website-nginx:refund
+docker push shubhradeepghosh23/html-website-nginx:refund
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress-sample
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order
+  namespace: ingress-sample
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: order
+  template:
+    metadata:
+      labels:
+        app: order
+    spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:order
+        name: order
+        ports:
+        - containerPort: 5678
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: order-service
+  namespace: ingress-sample
+spec:
+  selector:
+    app: order
+  ports:
+    - port: 5678
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: refund
+  namespace: ingress-sample
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: refund
+  template:
+    metadata:
+      labels:
+        app: refund
+    spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:refund
+        name: refund
+        ports:
+        - containerPort: 5678
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: refund-service
+  namespace: ingress-sample
+spec:
+  selector:
+    app: refund
+  ports:
+    - port: 5678
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-example
+  namespace: ingress-sample
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: myapp.com
+    http:
+      paths:
+      - path: /order
+        pathType: Prefix
+        backend:
+          service: 
+            name: order-service
+            port:
+              number: 5678
+      - path: /refund
+        pathType: Prefix
+        backend:
+          service: 
+            name: refund-service
+            port:
+              number: 5678
+---
+#create a bash script for cleaning up the ingress resources
+----------------------------------------------------
+#!/bin/bash
+
+service_list=('deployment.apps/order' 'deployment.apps/refund' 'service/order-service' 'service/refund-service')
+for i in "${service_list[@]}"; do kubectl delete $i -n ingress-sample; done
+
+kubectl delete ingress ingress-example -n ingress-sample
+kubectl delete ns ingress-sample
+kubectl get all -n ingress-sample
+kubectl get ingress -n ingress-sample
+-------------------------------------------------------
+## Ingress
+https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html
+
+install ingress controller
+-----------------------------------------
+## nginx ingress controller on Minikube, setup minikube ec2 as prerequisite for the bwlo steps:
+## create bash script with contents of file name 'docker-kubectl-installation.txt' & run the script
+ubuntu@ec2-ip$ sudo chmod +x docker-kubectl-installation.sh
+ubuntu@ec2-ip$ ./docker-kubectl-installation.sh
+root@ec2-ip$ minikube start --vm-driver=none
+
+root@ec2-ip$ minikube addons enable ingress
+# Test Minikube by deploying nginx deployment & nodeport service & access it through browser with public ip of ec2 where minikube is installed
+root@ec2-ip$ git clone https://github.com/cloudxlab/minikube-static-app.git
+# Edit the ingress.yaml to add '- host: myapp.com'
+kubectl create -f 

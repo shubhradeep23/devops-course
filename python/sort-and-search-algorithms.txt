@@ -1,0 +1,100 @@
+import random
+
+def generate_number_range(n:int, arg:str='sorted'):
+    random_list=[]
+    for _ in range(1, n):
+        x = random.randrange(1, n)
+        random_list.append(x)
+    sorted_list = sorted(random_list)
+    if arg == 'unsorted':
+        return random_list
+    return sorted_list
+
+def bubble_sort(arr:[]):
+    n=len(arr)
+    for i in range(n-1):
+        for j in range(n-i-1):
+            if arr[j] > arr[j+1]:
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+
+def linear_search(arr:[], x:int):
+    for i in range(len(arr)):
+        if arr[i] == x:
+            return i
+    return -1
+
+def recursive_binary_search(arr:[], low:int, high:int, x:int):
+    if low <= high:
+        mid=(high+low) // 2
+        if arr[mid] == x:
+            return mid
+        elif arr[mid] > x:
+            return recursive_binary_search(arr, low, mid - 1, x)
+        else:
+            return recursive_binary_search(arr, mid + 1, high, x)
+    else:
+        return -1
+
+def iterative_binary_search(arr:[], x:int):
+    low=0
+    high=len(arr)-1
+    mid=0
+    while high >= low:
+        mid=(high+low) // 2
+        if arr[mid] < x:
+            low = mid + 1
+        elif arr[mid] > x:
+            high = mid - 1
+        else:
+            return mid
+    else:
+        return -1
+
+def find_x(arr:[], x:int):
+    result = recursive_binary_search(arr, 0, len(arr)-1, x)
+    if result != -1:
+        print(f"Element was found at index {result}")
+        return True
+    else:
+        print("Element was not found")
+
+if __name__ == '__main__':
+    x=9889
+    while True:
+        arr=generate_number_range(10000)
+        if find_x(arr, x):
+            print("X finally found !!!!")
+            break
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

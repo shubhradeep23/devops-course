@@ -1,0 +1,16 @@
+---
+- hosts: all-webservers
+  become: true
+  tasks:
+  - name: Remove Apache2 from Ubuntu
+    apt:
+      name: apache2
+      state: absent
+    when: ansible_facts['distribution'] == 'Ubuntu'
+
+  - name: Remove httpd from Amazon Linux
+    yum:
+      name: httpd
+      state: absent
+    when: ansible_facts['distribution'] == 'Amazon'
+...

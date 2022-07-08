@@ -1,0 +1,12 @@
+- hosts: all-webservers
+  vars:
+    env: staging
+  tasks:
+    - name: template file onto remote hosts
+      become: true
+      template:
+        src: files/my_app.conf.j2
+        dest: /etc/my_app.conf
+        owner: root
+        group: root
+        mode: 0600

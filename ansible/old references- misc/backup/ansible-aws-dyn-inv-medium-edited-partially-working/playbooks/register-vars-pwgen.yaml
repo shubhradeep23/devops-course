@@ -1,0 +1,15 @@
+- hosts: ubuntu-webservers
+  #user: ansible
+  become: True
+  tasks:
+    - name: Ensure pwgen is installed
+      apt:
+         name: pwgen
+         state: present
+         update_cache: True
+    - name: Generate password
+      shell: pwgen -N 1 -s 30
+      register: mypass
+    - name: Print the generated password
+      debug:
+        msg: "The password is {{ mypass.stdout }}"

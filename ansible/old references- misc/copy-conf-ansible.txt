@@ -1,0 +1,52 @@
+- hosts: tag_Name_kubernetes_master
+  become: yes
+  tasks:
+    - name: Change Directory
+      shell: cd /etc/kubernetes
+      shell: cp -r /etc/kubernetes/admin.conf /tmp
+
+    - name: fetch file from remote machine
+      fetch:
+        src: /tmp/admin.conf
+        dest: /tmp
+        flat: yes
+
+- hosts: localhost
+  become: yes
+  tasks:
+    - name: install kubectl
+      apt:
+        name: kubectl
+        state: present
+        force: yes
+
+    - name: create .kube directory
+      become: yes
+      become_user: root
+      file:
+        path: $HOME/.kube
+        state: directory
+        mode: 0755
+
+    - name: 
+    - name: copy admin.conf to user's kube config
+      copy:
+        src: /tmp/admin.conf
+        dest: /root/.kube/
+        remote_src: yes
+        owner: root
+
+practice-playbooks/172.2.2.2/file-test.conf
+
+cp practice-playbooks/1*.*/file-test.conf /root
+____________________________________________
+- hosts: all
+  become: true
+  gather_facts: false
+  tasks:
+    - name: change directory to ansible folder
+      shell: cd /root/myplatform-post-sucess-deploymnt
+
+    - name: run shell cmd to copy files
+      shell: cp practice-playbooks/1*.*/file-test.conf /root
+

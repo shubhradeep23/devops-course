@@ -1,0 +1,139 @@
+Exporters and integrations: prometheus can integrate with several vendors to scrape metrics 
+prometheus uses a pull rather than push approach to scraping metrics in order to reduce processing power and avoid overloading cpu and memory.
+pull approach also reduces operation complexity as apps do not need to bother about changing configuration for prometheus as prometheus will find the app from where it has to scrape metrics.
+
+K8 monitoring: kube state metrics (pod cpu/memory/network), api server (workload status), kubelet (containers & nodes)
+prometheus operator> node exporter> kube state metrics> alert manager> prometheus cluster monitoring> grafana
+
+
+Prometheus Operator: manages prometheus instances
+Service Monitor (service discovery): using label selectors, prometheus will find the app & scrape metrics from the app (data source)
+---------------------------------------------------
+# Prometheus & Grafana Resources which get created 
+
+deployment.apps/blackbox-exporter
+deployment.apps/grafana
+deployment.apps/kube-state-metrics
+deployment.apps/prometheus-adapter
+deployment.apps/prometheus-operator
+
+service/alertmanager-main
+service/blackbox-exporter
+service/grafana
+service/kube-state-metrics
+service/node-exporter
+service/prometheus-adapter
+service/prometheus-k8s
+service/prometheus-operator
+
+daemonset.apps/node-exporter
+
+replicaset.apps/blackbox-exporter-6b79c4588b
+replicaset.apps/grafana-7fd69887fb
+replicaset.apps/kube-state-metrics-55f67795cd
+replicaset.apps/prometheus-adapter-85664b6b74
+replicaset.apps/prometheus-operator-6dc9f66cb7
+-----------------
+#!/bin/bash
+
+resource_list=('deployment.apps/blackbox-exporter' 'deployment.apps/grafana' 'deployment.apps/kube-state-metrics' 'deployment.apps/prometheus-adapter' 'deployment.apps/prometheus-operator' 'service/alertmanager-main' 'service/blackbox-exporter' 'service/grafana' 'service/kube-state-metrics' 'service/node-exporter' 'service/prometheus-adapter' 'service/prometheus-k8s' 'service/prometheus-operator' 'daemonset.apps/node-exporter')
+
+for resource in "${resource_list[@]}"; do
+    kubectl delete $resource -n monitoring;
+done
+-----------------------
+## Set up Prometheus & Grafana on K8s cluster
+git clone --depth 1 https://github.com/prometheus-operator/kube-prometheus.git -b release-0.10
+kubectl create -f kube-prometheus/manifests/setup/
+kubectl create -f kube-prometheus/manifests/
+kubectl get all -n monitoring
+
+#Fix Grafana Datasource
+#Now for some reason, the Prometheus data source in Grafana does not work out the box. To fix it, we need to change the service endpoint of the data source.
+#To do this, edit manifests/grafana-dashboardDatasources.yaml and replace the datasource url endpoint with http://prometheus-operated.monitoring.svc:9090
+#We'll need to patch that and restart Grafana
+
+kubectl apply -f ./manifests/grafana-dashboardDatasources.yaml
+kubectl -n monitoring delete po <grafana-pod>
+
+kubectl --namespace monitoring patch svc prometheus-k8s -p '{"spec": {"type": "NodePort"}}'
+kubectl --namespace monitoring patch svc alertmanager-main -p '{"spec": {"type": "NodePort"}}'
+kubectl --namespace monitoring patch svc grafana -p '{"spec": {"type": "NodePort"}}'
+kubectl -n monitoring get svc  | grep NodePort
+
+#Access Grafana & Prometheus from Web Browsers with the ports in output from above command
+------------------------------
+#Monitor Linux Machines with Prometheus
+
+Node-exporter runs as daemonset which scrapes metrics from linux machines
+prometheus operator> prometheus> service monitor> node exporter
+
+create prometheus operator> prometheus instance> node exporter> 
+-----------------------------------
+## Another way to install Prometheus & Grafana using Helm, Also install Mongodb Exporter to scrape mongodb metrics (3rd party metrics)	
+
+# Create Mongodb deployment & Service (create a mongodb.yaml from contents in 'monitoring/mongodb.yaml')
+kubectl create -f mongodb.yaml
+
+# Create values.yaml from 'monitoring/values.yaml'
+
+#Install Helm
+curl https://baltocdn.com/helm/signing.asc | gpg --dearmor | sudo tee /usr/share/keyrings/helm.gpg > /dev/null
+sudo apt-get install apt-transport-https --yes
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/helm.gpg] https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+sudo apt-get update
+sudo apt-get install helm
+
+#install Prometheus-operator (Optional)
+#add repos
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo add stable https://kubernetes-charts.storage.googleapis.com/
+helm repo update
+ 
+#install chart (Optional)
+helm install prometheus prometheus-community/kube-prometheus-stack
+
+#install Mongodb-exprter
+#add repos
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+
+#install chart
+#helm install mongodb-exporter prometheus-community/prometheus-mongodb-exporter
+helm install mongodb-exporter prometheus-community/prometheus-mongodb-exporter -f values.yaml  
+
+#port-forwardings (Optional)
+#Prometheus-UI
+kubectl port-forward service/prometheus-kube-prometheus-prometheus 9090
+
+#Alert Manager UI (Optional)
+kubectl port-forward svc/prometheus-kube-prometheus-alertmanager 9093
+
+#Grafana (Optional)
+kubectl port-forward deployment/prometheus-grafana 3000
+
+#Grafana Dashboard credentials (Optional)
+user: admin
+pwd: prom-operator (from values.yaml file set as default)
+
+#Mongodb-exporter 
+kubectl port-forward service/mongodb-exporter-prometheus-mongodb-exporter 9216  
+curl http://127.0.0.1:9216/metrics
+
+#Check metrics for mongodb pods in Grafana UI under Default/Kubernetes/Compute Resources/Pod 
+--------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

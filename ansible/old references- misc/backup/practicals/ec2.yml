@@ -1,0 +1,20 @@
+- name: Provision Ubuntu & Amazon Linux EC2 Instances
+  hosts: localhost
+  vars_files: variables.yaml
+    
+  tasks:
+  - name: Provision Set of Ubuntu EC2 Instances
+    amazon.aws.ec2_instance:
+      key_name: "{{ mumbai_region_key }}"
+      region: "{{ region }}"
+      instance_type: "{{ mumbai_ubuntu_instance_type }}"
+      image: "{{ mumbai_ubuntu_ami_id }}"
+      wait: yes
+      wait_timeout: 500
+      count: "{{ mumbai_ubuntu_ec2_count }}"
+      instance_tags:
+        "{{ mumbai_ubuntu_ec2_tag_key }}: {{ mumbai_ubuntu_ec2_tag_value }}"
+      monitoring: yes
+      group_id: "{{ mumbai_security_group }}"
+      vpc_subnet_id: "{{ mumbai_subnet }}"
+      assign_public_ip: yes

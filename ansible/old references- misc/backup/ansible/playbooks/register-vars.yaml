@@ -1,0 +1,15 @@
+- hosts: localhost
+  vars:
+    somevar: 5
+    anothervar: hello
+  tasks:
+    - name: Register output as a variable to be used by other tasks
+      ansible.builtin.shell: "echo {{ somevar }}"
+      register: foo_result
+      #ignore_errors: true
+
+    - name: Another task using the registered variable
+      ansible.builtin.debug:
+        msg: "echo {{ anothervar }}"
+      when: foo_result.rc == 5
+

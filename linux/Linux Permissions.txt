@@ -1,0 +1,75 @@
+R=4  #Read Permission
+W=2  #Write Permission
+X=1  #Execute Permission
+
+ user group others
+-rw- | r-- | r--user is created under /Home directory
+6      4     4
+
+U = root=6
+G = root=4
+others= <ubuntu>#user=4
+
+chmod 707 /root  #give read write execute permissions to current user & other users but no permissions to any groups
+chmod +x script.sh  #gives only executable permission for current user so the script can be executed
+chown user1:linux-user-group directory/  #Changes ownership of directory to user1 & the group 'linux-user-group'
+usage of chown: chown username:groupname directory-or-file-name
+chown owner_name file_name  #changes user ownership
+chown :group1 file1.txt  #only changes group ownership
+chown --from=master root greek1  #To change the owner from particular ownership only
+chown --from=:group1 root greek1  #To change group from a particular group
+chown --reference=greek1 greek2  #To copy ownership of one file to another
+chown master:group greek2 greek3  #To change ownership of multiple files
+
+
+create a new user:
+# useradd -m <username>  #-m flag create user with home directory
+# passwd <username>
+# <password>
+
+su -subro #switch to other user from any user
+sudo su - #switch to root from other user
+---------------------------------------------------
+Group & User Management
+
+sudo usermod -a -G groupname username  #Adds user to group
+sudo usermod -a -G sudo linuxize  #add the user linuxize to the sudo group, you would run the following command
+sudo usermod -a -G group1,group2 username  #add an existing user to multiple secondary groups in one command
+sudo gpasswd -d username groupname  #remove a user from a group, use the gpasswd command wit the -d option.
+sudo groupadd groupname  #Create a Group
+sudo groupdel groupname  #Delete a Group
+sudo usermod -g groupname username  #Change a User’s Primary Group 
+sudo useradd -g users -G wheel,developers nathan  #Create a New User and Assign Groups in One Command
+id username  #Display User Groups
+groups linuxize  #Displays all groups this user is associated with
+
+# groupadd <group name>
+# groupadd <GN>
+# adduser <GN> <UN>
+#chgrp <Groupname> <filename.txt>  #to associate file to a particular group from root credentials
+--------------------------------------------------------------------------------
+#check if service is present
+$ systemctl show -p SubState --value NetworkManager
+running
+------------------------------
+#runs 'kubectl get all' & refrehes every 10 secs
+while true; do kubectl get all; sleep 10; clear; done
+
+/etc/ssh/sshd_config  # sshd_config has authentication related configuration options which can be modified according to user preference
+PasswordAuthentication no  #default config which can be changed to yes which enables users to login with password
+PermitRootLogin prohibit-password  #default config which does not allow root to login but if changed to yes, root would be able to login
+
+restart sshd service after making changes to sshd_config file
+$ service sshd restart
+$ service sshd status
+--------------------------------
+ssh-agent bash -c "ssh-add us-west-1.pem; ssh-copy-id -f ubuntu@172.31.3.41"   #Command Not working
+
+
+
+
+
+
+
+
+

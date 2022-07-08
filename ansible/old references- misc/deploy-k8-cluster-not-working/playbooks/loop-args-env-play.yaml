@@ -1,0 +1,12 @@
+- hosts: all-webservers
+  become: true
+  tasks:
+    - name: use args, environment & loop with shell
+      shell: echo "Hello World!" > $TARGET
+      args:
+        chdir: /tmp
+      environment:
+        TARGET: "{{ item }}"
+      loop:
+        - test_file1
+        - test_file2

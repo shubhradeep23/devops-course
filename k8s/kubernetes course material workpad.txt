@@ -1,0 +1,540 @@
+Kubernetes prep
+https://blog.container-solutions.com/kubernetes-deployment-strategies
+https://spot.io/resources/kubernetes-autoscaling/5-kubernetes-deployment-strategies-roll-out-like-the-pros/?hsa_ver=3&hsa_kw=&hsa_cam=16712870764&hsa_tgt=dsa-844457319037&hsa_acc=8916801654&hsa_mt=&hsa_net=adwords&hsa_ad=590255918540&hsa_src=g&hsa_grp=133419158565
+https://phoenixnap.com/kb/understanding-kubernetes-architecture-diagrams   ##take diagram & explanation for difference between classical & container env when creating docker course material
+
+Namespaces
+Labels and Selectors
+Pods
+Jobs
+Cron Jobs
+DNS
+Service: clusterip, nodeport, loadbalancer, ingress, headless
+Deployments: liveliness, readiness & startup probes && resource contraints- cpu/ram resource to pods
+DaemonSet
+Statefulset
+Init Containers
+Configmap
+Secrets
+Persistent Volume & Persistent Volume Claim
+Storage Class
+RBAC: https://docs.bitnami.com/tutorials/configure-rbac-in-your-kubernetes-cluster/
+stateless vs stateful applications
+Autoscaling: horizontal, vertical, cluster
+Taints and Tolerations
+Helm
+Project: Deploy 3 tier app on EKS cluster
+
+------------------------------------------------------
+## Create K8s cluster with K0s with a few simple commands
+https://www.mirantis.com/blog/how-to-set-up-k0s-kubernetes-a-quick-and-dirty-guide/
+
+root@k8s-master-ip$ curl -sSLf https://get.k0s.sh | sudo sh
+root@k8s-master-ip$ k0s install controller --enable-worker
+root@k8s-master-ip$ k0s start
+root@k8s-master-ip$ k0s status
+root@k8s-master-ip$ k0s kubectl get nodes  #wait until the node is in Ready status
+root@k8s-master-ip$ cp /var/lib/k0s/pki/admin.conf ~/admin.conf
+root@k8s-master-ip$ vim /etc/profile  ##copy paste the below line
+export KUBECONFIG=~/admin.conf
+root@k8s-master-ip$ source /etc/profile
+root@k8s-master-ip$ kubectl get all
+root@k8s-master-ip$ kubectl taint nodes $(hostname) node-role.kubernetes.io/master:NoSchedule-
+## create nginx deployment & nodeport service to test the k8s cluster functionality
+----------------------------------------------
+kubectl config set-context --current --namespace=NAMESPACE
+------------------------------------------
+## nginx deployment & service
+kubectl create deployment nginx --image=nginx
+#create cluster ip service first
+wget -q -O - <clusterip>
+kubectl create service nodeport nginx --tcp=80:80
+#check with ec2-public-ip with node port assigned
+
+## Node Port Example:
+------------------
+root@ec2-ip$ mkdir k8s
+root@ec2-ip$ vim k8s/nodeport-example.yaml   ##Paste the below content into the vim editor
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:firstupload   
+        name: my-app
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  type: NodePort
+  selector:
+    app: my-app
+  ports:
+      # By default and for convenience, the `targetPort` is set to the same value as the `port` field.
+    - port: 80
+      targetPort: 80
+      # Optional field
+      # By default and for convenience, the Kubernetes control plane will allocate a port from a range (default: 30000-32767)
+      nodePort: 30007
+---
+root@ec2-ip$ kubectl apply -f k8s/nodeport-example.yaml
+--------------------------------------------------------------------------------------------------------------------------------------
+## Notice the '- image' value under 'spec: containers:' is shubhradeepghosh23/html-website-nginx:firstupload. This custom image was uplaoded to dockerhub with the Tag: firstupload
+## Now copy the eks worker node public ip from AWS console & paste it in web browser with port 30007 as we explicitly assigned a static port 30007 in the Service Manifest (nodePort: 30007)
+## Web browser should display "App Feature Version 1" in Red color Font.
+## update the image to another version & check the output, perform the following steps:
+
+root@ec2-ip$ vim k8s/nodeport-example.yaml  ## Edit the tag in 'image' section to 'shubhradeepghosh23/html-website-nginx:Version2' from ':firstupload'
+
+ spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:Version2   
+        name: my-app
+        ports:
+        - containerPort: 8080
+----------------------------------------------------------------------
+root@ec2-ip$ kubectl apply -f k8s/nodeport-example.yaml  ## This will do a Rolling Update to replace the older version with the new verion without any downtime
+After updating version field in deployment yaml file, check status of rollout:
+root@ec2-ip$ kubectl rollout status deployment.apps/my-app
+root@ec2-ip$ kubectl get all   ## Notice that a service called 'service/my-service' shows as NodePort
+## Also notice that there are no ELB's created on AWS Console Loadbalancer Section as Nodeport accepts the traffic directly on specific ports of Worker nodes.
+## Web browser should display "App Feature Version 2" in Blue color which was Red before the update & was saying "App Feature Version 1".
+------------------------------------------------------------------------
+________________________________________________________________________
+## LoadBalancer Example 
+root@ec2-ip$ vim k8s/loadbalancer-example.yaml  #Copy Paste below yaml contents into file
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: hello-world
+  #namespace: example
+  annotations:
+    service.beta.kubernetes.io/brightbox-load-balancer-healthcheck-request: /
+spec:
+  type: LoadBalancer
+  selector:
+    app: hello-world
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: web
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hello-world
+  #namespace: example
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: hello-world
+  template:
+    metadata:
+      labels:
+        app: hello-world
+    spec:
+      containers:
+        - name: app
+          image: brightbox/rails-hello-world
+          ports:
+            - name: web
+              containerPort: 3000
+              protocol: TCP
+---
+root@ec2-ip$ kubectl apply -f k8s/loadbalancer-example.yaml
+root@ec2-ip$ kubectl get all  ## Notice that a service Type LoadBalancer is showing a ELB url, copy ELB URL & paste in on browser with default port 80
+----------------------------------------------------------------------
+## RBAC
+Create Role & Role Binding for User called employee only in a specific namespace called office
+Create Role & Role Binding for bitnami group only in office namespace
+
+API Groups
+Resources
+Verbs
+https://docs.bitnami.com/tutorials/configure-rbac-in-your-kubernetes-cluster/
+
+kubectl create namespace office
+mkdir certs && cd certs
+openssl genrsa -out employee.key 2048
+openssl req -new -key employee.key -out employee.csr -subj "/CN=employee/O=bitnami"
+openssl x509 -req -in employee.csr -CA /var/lib/k0s/pki/ca.crt -CAkey /var/lib/k0s/pki/ca.key -CAcreateserial -out employee.crt -days 500
+cd ..
+kubectl config set-credentials employee --client-certificate=/root/certs/employee.crt  --client-key=/root/certs/employee.key
+kubectl config set-context employee-context --cluster=local --namespace=office --user=employee
+kubectl --context=employee-context get pods  ##below output should show up
+Error from server (Forbidden): pods is forbidden: User "employee" cannot list resource "pods" in API group "" in the namespace "office"
+vim role-deployment-manager.yaml
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: office
+  name: deployment-manager
+rules:
+- apiGroups: ["", "extensions", "apps"]
+  resources: ["deployments", "replicasets", "pods"]
+  verbs: ["get", "list", "watch", "create", "update", "patch"] # You can also use ["*"]
+---
+kubectl create -f role-deployment-manager.yaml
+vim rolebinding-deployment-manager.yaml
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: deployment-manager-binding
+  namespace: office
+subjects:
+- kind: User
+  name: employee
+  apiGroup: ""
+roleRef:
+  kind: Role
+  name: deployment-manager
+  apiGroup: ""
+---
+kubectl create -f rolebinding-deployment-manager.yaml
+kubectl --context=employee-context run --image bitnami/dokuwiki mydokuwiki
+kubectl --context=employee-context get pods
+kubectl --context=employee-context get pods --namespace=default
+-----------------------------------------------------------------------------
+-----------------------------------------------------------------------------
+## Ingress: ALB Ingress Controller: https://docs.aws.amazon.com/eks/latest/userguide/aws-load-balancer-controller.html
+# Helm Installation Steps
+curl https://baltocdn.com/helm/signing.asc | sudo apt-key add -
+sudo apt-get install apt-transport-https --yes
+echo "deb https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+sudo apt-get update
+sudo apt-get install helm
+
+attach IAM Admin role to ec2 where eksctl will be installed
+install kubectl, eksctl, helm, awscli (install kubectl & eksctl from aws eks documentation)
+aws configure> enter access id, secret key & region
+
+eksctl create cluster --name shubhradeep-eks --region us-east-2 --nodegroup-name shubhradeep-nodes --node-type t2.medium --managed --nodes 1 
+
+curl -o iam_policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.1/docs/install/iam_policy.json
+
+aws iam create-policy \
+    --policy-name AWSLoadBalancerControllerIAMPolicy \
+    --policy-document file://iam_policy.json
+
+eksctl utils associate-iam-oidc-provider --region=us-east-2 --cluster=shubhradeep-eks --approve
+
+eksctl create iamserviceaccount \
+  --cluster=shubhradeep-eks \
+  --namespace=kube-system \
+  --name=aws-load-balancer-controller \
+  --role-name "AmazonEKSLoadBalancerControllerRole" \
+  --attach-policy-arn=arn:aws:iam::891190821806:policy/AWSLoadBalancerControllerIAMPolicy \
+  --approve
+
+helm repo add eks https://aws.github.io/eks-charts
+
+helm repo update
+
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=shubhradeep-eks \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller 
+  --set image.repository=602401143452.dkr.ecr.us-east-2.amazonaws.com/amazon/aws-load-balancer-controller
+
+#If there is an error related to invalid API Version: error: exec plugin: invalid apiVersion "client.authentication.k8s.io/v1alpha1", then perform following steps:
+#install awscli2 : refer to aws documentation
+#run following command: aws eks update-kubeconfig --name <eks-cluster-name> --region us-east-2
+#then rerun the above helm command to install alb
+
+kubectl get deployment -n kube-system aws-load-balancer-controller
+
+create a yaml file with the below content & create the ingress, deplyment & service to launch a game app.
+https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.1/docs/examples/2048/2048_full.yaml
+
+docker login --username=shubhradeepghosh23   ## runs docker login command before pulling custom image from your own repo in dockerhub account
+# Add Listeners 5678 & 5679 pointing to its respective ingress (order & refund) in Load Balancer console.
+# Make necessary networking changes in security groups to allow traffic to eks cluster
+
+eksctl delete cluster --region=us-east-2 --name=shubhradeep-eks
+---------------------------------------------
+## Persistent Volume
+https://kubernetes.io/docs/concepts/storage/persistent-volumes/
+https://loft.sh/blog/kubernetes-persistent-volumes-examples-and-best-practices/
+https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/
+#Refer to https://docs.aws.amazon.com/eks/latest/userguide/efs-csi.html
+deploy EKS > refer to above link for EFS implementation
+
+#Create k0s k8s worker node ec2 instance & add worker node to k8s cluster using token generated from master node: https://www.mirantis.com/blog/how-to-set-up-k0s-kubernetes-a-quick-and-dirty-guide/
+
+#Setup NFS server & client for shared storage
+https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-20-04
+OR follow steps in notepad: '<my-github-repo>/k8s/nfs-setup'
+
+shared directory between k8s-master & k8s-worker:  /var/nfs/general/
+
+kubectl exec -it demo-pod -- /bin/sh
+
+----------------------------------------------
+#Refer to https://kubernetes.io/docs/tasks/configure-pod-container/configure-persistent-volume-storage/
+#Create pod with persistent volume & pvc to make data inside the pod persistent & permanent. yaml files in '<my-github-repo>/k8s/storage/pv-example
+kubectl create -f k8s/storage/pv-example/pv.yaml
+kubectl create -f k8s/storage/pv-example/pvc.yaml
+kubectl create -f k8s/storage/pv-example/pod-pv.yaml
+kubectl exec -it pod/ubuntu -- /bin/sh
+inside-pod-shell$ apt update
+inside-pod-shell$ apt install vim -y
+inside-pod-shell$ vim /usr/share/nginx/html/index.html
+#add a line saying "new data added before pod gets destroyed"
+#save & exit with command wq
+#exit the pod with command exit
+root@ec2-ip$ cat /mnt/data/index.html  ##Check to see if the changes you made insode the pod are reflecting on host machine directory '/mnt/data/' which was mounted as persistent volume.
+Now delete the pod & recreate it. Check if index.html has the added line saying "new data added before pod gets destroyed".
+This proves functionality of Persistent Volume
+
+PV is namespace independent & hence doesnt associate itself with any namespace
+But PVC needs to be in the same namespace as the Pods or Deployments
+Storage Class creates PV's dynamically whenver a deployment asks for storage with PVC
+storage class uses internal & external provisioners to integrate with backend storage lije AWS EBS or Azure or VMware's storage
+PVC manifest should have Storageclass name defined in order for Storage class to create a PV dynamically
+
+##Storage class Practical- https://github.com/justmeandopensource/kubernetes/tree/master/yamls
+in storageclass yaml, archiveOnDelete: is set to "false", then when pvc is deleted, its going to delete the pv & the volume on the remote nfs server.
+but if this option is set to "true", then it would delete the pv but not the volume on the remote nfs server.
+
+kubernetes-sigs/nfs-subdir-external-provisioner   ##user version v4.0.2
+
+nfs external provisioner needs to be deployed in order for pv to automatically/dynamically get created. need to use kubernetes-sigs/nfs-subdir-external-provisioner   ##user version v4.0.2
+objective of this practical is to verify if pv is getting created dynamically after a pvc is manually created.
+nfs provisioner deployment image name: 'gcr.io/k8s-staging-sig-storage/nfs-subdir-external-provisioner:v4.0.2 or later versions
+https://github.com/kubernetes-sigs/nfs-subdir-external-provisioner
+
+Steps:
+my github repo (to be created after course material completion)> k8s > storage 
+edit deployment.yaml to change nfs server private ip & nfs server path
+kubectl create -f k8s/storage/nfs-provisioner/rbac.yaml
+kubectl create -f k8s/storage/nfs-provisioner/storage-class.yaml
+kubectl create -f k8s/storage/nfs-provisioner/deployment.yaml
+kubectl create -f k8s/storage/storage-class-example/nfs-pvc.yaml
+kubectl get sc  ##storage controller details which you just created
+kubectl get pvc  ## new pvc for nfos which you just created
+kubectl get pv ##verify if the new pv got dynamically or automatically created, if yes, then the practical was a success.
+-----------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------
+## Configmaps & Secrets
+https://kubernetes.io/docs/concepts/configuration/configmap/
+Configmaps: 
+kubectl create -f k8s/configmap/k8-configmap.yaml
+kubectl create -f k8s/configmap/k8-pod-configmap.yaml
+---------------------------------------------------
+#configmap as environment variable
+create configmap & pod which conusmes the configmap, get into the shell of pod to verify the configmap configs:
+kubectl create -f k8s/configmap/configmap.yaml
+kubectl create -f k8s/configmap/pod-configmap-env.yaml
+kubectl exec -it busybox sh
+inside-pod$ echo $CHANNELNAME
+inside-pod$ echo $CHANNELOWNER
+inside-pod$ env | grep -i channel
+#delete only pod for next exercise 
+---------------------------------------
+#configmap as volume: deploy the configmap & pod for volume configmap
+kubectl create -f k8s/configmap/pod-configmap-volume.yaml
+inside-pod$ ls /mydata  ##outputs configmap data
+inside-pod$ cat /mydata/channel.name;; echo
+inside-pod$ cat /mydata/channel.owner; echo
+ 
+Now update the configmap variable channel.name to something else & redeploy configmap. Verify if the changes reflect inside the pod.
+kubectl edit configmap demo-configmap
+inside-pod$ cat /mydata/channel.name
+--------------------------------------
+#configmap as file
+cat misc/my.cnf  ##mount this file as configmap
+kubectl create configmap mysql-demo-config --from-file=misc/my.cnf
+OR create configmap from yaml from k8s/configmap/mysql-configmap.yaml
+--------------------------------------
+--------------------------------------
+## Secrets
+create base64 encoded string values for username & password which you should copy to k8s/secrets/secrets.yaml
+echo -n 'your-username' | base64  ##copy the output to username field in secrets.yaml
+echo -n 'your-password' | base64  ##copy the output to password field in secrets.yaml
+kubectl create -f k8s/secrets/secrets.yaml
+kubectl get secrets
+kubectl create -f k8s/secrets/pod-secret-env.yaml
+kubectl exec -it busybox -- sh
+inside-pod-shell$ env | grep -i username  ##outputs the secret which was injected into the pod
+inside-pod-shell$ echo $username  ##outputs the secret which was injected into the pod
+
+kubectl delete pod busybox
+
+kubectl create -f k8s/secrets/pod-secret-volume.yaml  ##create pod which mounts secret as a volume
+kubectl exec -it busybox -- sh
+inside-pod-shell$ env | grep -i username  ##no output as the secret has been mounted as volume
+inside-pod-shell$ ls /mydata   ##should output the username & password secret
+inside-pod-shell$ cat /mydata/username; echo
+inside-pod-shell$ cat /mydata/password; echo
+
+kubectl delete secrets secret-demo 
+kubectl create secret generic secret-demo -from-literal=username=your-username --from-literal=password=your-password  ##create secret using command line
+kubectl create secret generic secret-demo -from-file=username=path/to/file --from-file=path/to/file  ##create secret using command line from file
+
+update the secret with a new variable or change the value of existing variable & update the secret by redeploying the secret.
+verify inside the pod shell if the new variable or changed value of existing variable is reflecting.
+-----------------------------------------------------
+-----------------------------------------------------
+## Pod Disruption Budget - Theory: setting a percentage or a static integer value in Pod Disruption Budget yaml so during a maintainance activty when k8 admin is trying to evict all pods from a worker node, a specific number of pods set in Pod Disruption Budget yaml will not get evicted.
+This is to ensure that a certain number of pods run on the worker nodes no even when the k8s admin is trying to evict all pods from a certain worker node for maintainance activities.
+
+Some related commands to draining resources on worker nodes are as follow:
+kubectl cordon & uncordon  ##Refer to K8s documentation for this topic.
+------------------------------------------------------------------------------------------------
+## Jobs, Cron jobs, Horizontal Pod Autoscaler, Init Containers & Resource allocation:CPU Memory
+
+Refer to yaml files in directory 'k8s/jobs-cronJobs-initContainers-hpa/'
+------------------------------------------------------------------------------------------------
+## Health checks for pods/deployments using Liveliness, Readiness & Startup Probes- Theory Only
+
+https://loft.sh/blog/kubernetes-startup-probes-examples-common-pitfalls/
+------------------------------------------------------------------------------------------------
+## Taints & Toleration
+Taints are the opposite -- they allow a node to repel a set of pods. Tolerations are applied to pods, and allow (but do not require) the pods to schedule onto nodes with matching taints. Taints and tolerations work together to ensure that pods are not scheduled onto inappropriate nodes
+
+root@k8s-master-ip$ kubectl taint nodes $(hostname) node-role.kubernetes.io/master:NoSchedule-  ##Removes Taint from Master node so pods can be scheduled on Master Node
+
+https://www.densify.com/kubernetes-autoscaling/kubernetes-taints
+------------------------------------------------------------------------------------------------
+## Daemonsets
+
+https://spot.io/resources/kubernetes-autoscaling/kubernetes-daemonset-a-practical-guide/?hsa_ver=3&hsa_kw=&hsa_cam=16712870764&hsa_tgt=dsa-406018441888&hsa_acc=8916801654&hsa_mt=&hsa_net=adwords&hsa_ad=590255918540&hsa_src=g&hsa_grp=133419158565
+------------------------------------------------------------------------------------------------
+## AutoScaling
+
+https://spot.io/resources/kubernetes-autoscaling-3-methods-and-how-to-make-them-great/
+https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale-walkthrough/
+------------------------------------------------------------------------------------------------
+----------------------------------------------
+##Statefulset & Headless service Example
+
+https://kubernetes.io/docs/tutorials/stateful-application/basic-stateful-set/
+https://spot.io/resources/kubernetes-architecture/kubernetes-statefulsets-scaling-managing-persistent-apps/
+------------------------------------------------
+## Helm: Install helm with the below commands & refer to urls below for helm usage
+
+curl https://baltocdn.com/helm/signing.asc | sudo apt-key add -
+sudo apt-get install apt-transport-https --yes
+echo "deb https://baltocdn.com/helm/stable/debian/ all main" | sudo tee /etc/apt/sources.list.d/helm-stable-debian.list
+sudo apt-get update
+sudo apt-get install helm
+
+https://www.freecodecamp.org/news/what-is-a-helm-chart-tutorial-for-kubernetes-beginners/
+https://phoenixnap.com/kb/helm-commands-cheat-sheet
+
+helm repo add opsmx https://helmcharts.opsmx.com/
+helm repo list   ## shows added helm repos
+helm install my-hello-kubernetes opsmx/hello-kubernetes --version 1.0.3
+kubectl get all  ## make a note of loadbalancer port number
+access k0s-master-ec2-public-ip:<loadbalancer-port> through a web browser
+helm uninstall my-hello-kubernetes  ##cleaup resources created using helm
+kubectl get all  #verify if all resources created are gone/deleted
+------------------------------------------------
+#configure Traefik ingress on k0s cluster
+https://www.bookstack.cn/read/k0sproject-0.9.0-en/fc3542dbac3d7b70.md
+
+#check the below links for issue with kubectl exec not working on k0s master, check permission of .sock  file 
+https://github.com/k0sproject/k0s/issues/665
+srwxrwx--- 1 root root 0 Jan 15 19:32 /var/lib/k0s/run/konnectivity-server/konnectivity-server.sock
+
+https://github.com/k0sproject/k0s/issues/1352
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

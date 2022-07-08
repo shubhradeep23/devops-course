@@ -1,0 +1,17 @@
+- hosts: ubuntu-webservers
+  become: True
+  tasks:
+    - name: Get home directory /home/ansible contents
+      shell: ls /tmp
+      register: dir_contents
+    - name: Create a new directory /tmp/ansible
+      file:
+        path: /root/ansible
+        state: directory
+
+    - name: Backup home directory /home/ansible to /tmp/ansible
+      ansible.builtin.copy:
+        src: /tmp/{{ item }}
+        dest: /root/ansible/
+        remote_src: yes
+      loop: "{{ dir_contents.stdout_lines }}"

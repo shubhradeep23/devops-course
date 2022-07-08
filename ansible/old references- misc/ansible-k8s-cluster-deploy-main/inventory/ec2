@@ -1,0 +1,16 @@
+[master]
+# master nodes of the cluster
+
+[node]
+# worker nodes of the cluster
+
+[kube_cluster:children]
+master
+node
+
+[kube_cluster:vars]
+ansible_python_interpreter=/usr/bin/python3
+ansible_ssh_private_key_file: ~/.ssh/mumbai-key
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+ansible_ssh_user=ubuntu
+ansible_become: true

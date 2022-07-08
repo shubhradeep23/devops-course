@@ -1,0 +1,55 @@
+‘r’ – Read Mode: Read mode is used only to read data from the file.
+‘w’ – Write Mode: This mode is used when you want to write data into the file or modify it. Remember write mode overwrites the data present in the file.
+‘a’ – Append Mode: Append mode is used to append data to the file. Remember data will be appended at the end of the file pointer.
+‘r+’ – Read or Write Mode: This mode is used when we want to write or read the data from the same file.
+‘a+’ – Append or Read Mode: This mode is used when we want to read data from the file or append the data into the same file.
+While using binary files, we have to use the same modes with the letter ‘b’ at the end. So that Python can understand that we are interacting with binary files.
+-----------------------------------------------------------------------------------
+
+# Python code to create a file
+file = open('geek.txt','w')
+file.write("This is the write command")
+file.write("It allows us to write in a particular file")
+file.close()
+------------------------------------------------------
+# Python code to illustrate append() mode
+file = open('geek.txt','a')
+file.write("This will add this line")
+file.close()
+-----------------------------------------------------
+# Python code to illustrate with()
+with open("file.txt") as file: 
+    data = file.read()
+# do something with data
+--------------------------------------------------------
+file.txt
+--------
+hello world
+This file contains some dummy data
+GeeksforGeeks
+--------
+# Python program to replace text in a file
+s = input("Enter text to replace the existing contents:")
+f = open("geek.txt", "r+")
+
+# file.txt is an example here,
+# it should be replaced with the file name
+# r+ mode opens the file in read and write mode
+f.truncate(0)
+f.write(s)
+f.close()
+print("Text successfully replaced")
+---------------------------------------------------------
+https://www.geeksforgeeks.org/how-to-search-and-replace-text-in-a-file-in-python/
+
+
+
+
+
+
+
+
+
+
+
+

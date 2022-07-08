@@ -1,0 +1,58 @@
+#Selecting Files And Templates Based On Variables
+
+- name: template a file
+  template:
+      src: "{{ item }}"
+      dest: /etc/myapp/foo.conf
+  loop: "{{ query('first_found', { 'files': myfiles, 'paths': mypaths}) }}"
+  vars:
+    myfiles:
+      - "{{ansible_facts['distribution']}}.conf"
+      -  default.conf
+    mypaths: ['search_location_one/somedir/', '/opt/other_location/somedir/']
+---------------------------------------------
+#Interpolate a variable in a shell command run by Ansible
+
+- name: Find path to nodejs
+  command: which nodejs
+  register: nodejs_path
+
+- name: symlink the nodejs executable to node
+  command: "ln -sf {{ item }} /usr/bin/node"
+  sudo: True
+  with_items: nodejs_path.stdout
+--------------------------------------------
+#Ansible register result of multiple commandsss
+
+  - hosts: Linux
+    serial: 1
+
+    tasks:
+      - name: Check first
+        command: /sbin/ip route list xxx.xxx.xxx.xxx/24
+        register: result
+        changed_when: false
+
+      - debug: msg="{{result.stdout}}"
+
+      - name: Check second
+        command: /sbin/ip route list xxx.xxx.xxx.xxx/24
+        register: result
+        changed_when: false
+
+      - debug: msg="{{result.stdout}}"
+
+-------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+

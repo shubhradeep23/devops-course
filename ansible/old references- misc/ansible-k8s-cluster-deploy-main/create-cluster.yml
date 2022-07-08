@@ -1,0 +1,20 @@
+---
+# Create EC2 instances
+- hosts: local
+  gather_facts: False
+  vars:
+    - worker_node_count: 1
+  roles:
+    - role: create-ec2-instances
+
+- name: Pause for 5 minutes to build app cache
+  pause:
+    minutes: 5
+# Add local ssh-keys to the remote ec2 instances
+- import_playbook: kube-cluster/add-ssh-key.yml
+
+# Bootstrap the kubernetes cluster on the ec2 instances
+- import_playbook: kube-cluster/kube-dependencies.yml
+- import_playbook: kube-cluster/master.yml
+- import_playbook: kube-cluster/workers.yml
+

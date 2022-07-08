@@ -1,0 +1,42 @@
+---
+- hosts: all-webservers
+  become: true
+  gather_facts: yes
+  tasks:
+  - name: Update Ubuntu
+    apt: 
+      update_cache: yes    
+    when: ansible_facts['distribution'] == 'Ubuntu'  
+    
+  - name: Install apache2 on Ubuntu
+    apt:
+      name: apache2
+      state: present
+    when: ansible_facts['distribution'] == 'Ubuntu'
+
+  - name: Install httpd on Amazon Linux
+    package:
+      name: httpd
+      state: present
+    when: ansible_facts['distribution'] == 'Amazon'
+  
+  - name: copy code
+    get_url:
+      #copy: /path/to/index.html  (path where index.html is present on the ansible server)
+      url: https://raw.githubusercontent.com/raktim00/DevOpsHW/master/index.html
+      dest: "/var/www/html/index.html"
+
+  - name: restart apache
+    service:
+      name: apache2
+      state: started
+      enabled: yes
+    when: ansible_facts['distribution'] == 'Ubuntu'
+
+  - name: restart httpd
+    service:
+      name: httpd
+      state: started
+      enabled: yes
+    when: ansible_facts['distribution'] == 'Amazon'
+...

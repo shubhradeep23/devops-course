@@ -1,0 +1,226 @@
+Refer to Container VS Virtualization Diagrams: Operating systems have 2 layers on top the physical hardware layer which is kernel & application layer. both conainers & virtual machines are forms of virtualization but Containers virtualize the application layer & uses the kernel of the host whereas Operating systems has the application layer & its own kernel, so VM virtualizes the complete operating system. Docker containers are smaller in size compared to Virtual machines as runs & startsup faster than VM's as VM's need time to load the OS kernel & the application layer. 
+Containers are a way to Package application with all necessary dependencies & configuration.
+Portable Artifacts as container images can be easily moved around.
+Makes development & deployment more efficient.
+Dockerhub: Container Registry for centralized storage of containers
+Issues containers solve:
+- reduces complexity of manual configuration by automating configuration management. Ready to use application containers instead of having to install packages on OS.
+- containers own isolated environment as applications do not have to installed on OS.
+- multiple applications can run on a single server with docker installed.
+- easy to setup any application with just one docker run command.
+- Refer to diagrams legacy vs container development process where containers simplify software development process.
+
+Containers are layers of images where the base image is some form of linux like alpine, ubuntu etc & then applications and configuration form other layers.
+docker run postgres  #notice the number of layers being downloaded
+layers help too save time when redownloading a different version of the same container as only the layer which has changed gets downloaded instead of the entire container. for eg the first time postgres downloads will take more time to download & then when there is a different version or a later version of postgres available, it will download only the layer which has changed or updated instead of downloading from scratch.
+docker will first search locally on local machine for the container & if not available locally, then it will search & download from dockerhub.
+docker ps  #this command shows running containers, notice the difference between image & containers. Containers are build with images. 
+different versions of same containers can run at the same time without any conflicts as they are running on isolated environments on the same machine.
+
+Commom docker commands:
+docker pull <image-name> #downloads the docker image from dockerhub or any other container registries
+docker run <image-name>  #starts a running container based on the image
+docker run -d <image-name>  #running container in a detached mode so the container keeps running in the background & also lets us run other commands.
+docker stop <container-id>
+docker start <container-id>
+docker ps # shows running containers
+docker ps -a  #shows history
+docker images  #shows downloaded docker images on local machine
+
+we saw how 2 different versions of the same container can co exist without conflict but when they have to access the same port, there would be a network conflict as 2 applications cannot use the same port. Refer to diagram 'container port vs host port' to understand how to solve this network conflict.
+
+docker run -d <image-name> -p 8080:8081  # -p binds the port on host to container port so in this example, host port 8080 gets binded to container port 8081, so to access the application through a web browser, we must use the host ip with the host port like 10.23.4.36:8080 & host will forward the traffic to container port 8081
+
+docker run -p host-port:container-port -d <image-name>
+docker ps  # under 'PORTS' section, you can see the port binding
+to run a different version of the same container, you would have to specify a different host port but can keep the same container port, like below example:
+docker run -p 8080:8090 -d <image-name:version1>
+docker run -p 8081:8090 -d <image-name:version2>
+
+docker run command pulls the image from dockerhub & also starts a running container so there is no need for docker pull command except in some cases where we need to pull the image & make some additional custom changes to the image before running the container with the custom image.
+------------------------------------------------------------
+## Debugging
+docker logs <container-id> OR docker logs <container-name>
+
+naming a container: docker run -d -p 8081:8080 <image-name> --name myapp  # --name creates a container with a custom name as per your choice
+
+docker exec -it <container-id OR container-name> /bin/bash   # exec -it (iterative terminal) opens a shell prompt inside container 
+inside-container$ exit  #exits from container onto the hosts or local machine shell prompt
+
+Refer to docker workflow diagram to understand CI CD process: End to end CI CD pipeline practical will be done during Jenkins topic
+--------------------------------------------------------
+## Docker project to deploy nodejs app with mongodb: https://gitlab.com/nanuchi/techworld-js-docker-demo-app
+# Install Dependencies like nodejs & npm in order to for the frontend javascript application & nodejs backend web framework to connect to mongodb
+apt install nodejs
+apt install npm
+cd techworld-js-docker-demo-app/app
+npm install
+node server.js
+
+docker pull mongo
+docker pull mongo-express
+docker network create mongo-network  #docker network create isolated network where mongo express & mongodb will be able to communicate in this isolated network with just the container name because they are in the same network but other apps & services will need to communicate through ports from outside the isolated network
+docker network ls 
+docker run -d -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password --name mongodb --net mongo-network mongo    
+docker run -d -p 8081:8081 -e ME_CONFIG_MONGODB_ADMINUSERNAME=admin -e ME_CONFIG_MONGODB_ADMINPASSWORD=password --net mongo-network --name mongo-express -e ME_CONFIG_MONGODB_SERVER=mongodb mongo-express   
+http://<public-ip-ec2>:8081
+create database called 'user-account' using mongo-express UI
+create collections called 'users'
+
+docker logs <mongodb-container-id OR name> | tail
+----------------------------------
+## Docker Compose: Consolidate multiple application tiers into a single docker compose file 
+
+browse to folder 'docker\techworld-js-docker-demo-app-master'
+$ docker-compose -f docker-compose.yaml up
+create database called 'user-account' using mongo-express UI
+create collections called 'users'
+$ docker-compose -f docker-compose.yaml down
+------------------------------------------------
+#Above project seems to be partially working so try running the below project:
+https://www.bogotobogo.com/DevOps/Docker/Docker-Compose-Node-MongoDB.php
+docker-compose up -d --build
+docker-compose down
+-----------------------------------
+## Dockerfile
+
+browse to folder 'docker\techworld-js-docker-demo-app-master'
+$ docker build -t my-app:1.0 .
+$ docker images
+$ docker run my-app:1.0  #outputs 'app listening on port 3000'
+$ docker logs <container-id>
+$ docker exec -it <container-id OR name> /bin/sh
+container-shell$ env   # notice that mongodb username & password are set inside the contianer
+container-shell$ ls /home/app   #the application files were copied using copy in dockfile into the container
+
+-------------------------------------
+## dockerfile to create nginx images
+nginx.conf
+----------
+user  nginx;
+worker_processes  1;
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+events {
+    worker_connections  1024;
+}
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log  /var/log/nginx/access.log  main;
+    server {
+        listen 80;
+         
+         location = /status {
+             access_log off;
+             default_type text/plain;
+             add_header Content-Type text/plain;
+             return 200 "alive";
+        }
+        
+         location / {
+            gzip off;
+            root /usr/share/nginx/html/;
+            index  index.html;
+        }
+        
+        location ~* \.(js|jpg|png|css)$ {
+            root /usr/share/nginx/html/;
+        }
+    } 
+    sendfile        on;
+    keepalive_timeout  65;
+}
+------------------------------------------------
+Dockerfile
+----------
+FROM nginx:alpine
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY index.html /usr/share/nginx/html
+----------
+root@ip-172-31-94-152:~# cat nginx-html/index.html
+<html>
+  <head>
+    <title>My App</title>
+  </head>
+  <body>
+    <h1 style="color:blue;">App Feature Version 1.0</h1>
+  </body>
+</html>
+----------------
+docker rmi -f $(docker images -aq)   ##Removes all docker images
+docker build -t html-nginx .
+docker image ls
+docker run -d -p 5678:80 html-nginx
+docker login --username=shubhradeepghosh23  ##Enter dockerhub password when prompted
+docker images
+docker tag <Image-ID> shubhradeepghosh23/html-website-nginx:firstupload
+docker push shubhradeepghosh23/html-website-nginx:firstupload  #Verify on dockerhub if the image has been uploaded
+## change index.html content
+docker tag <Image-ID> shubhradeepghosh23/html-website-nginx:Version2
+---------------------------------------------------
+
+## Private container repository: AWS ECR (Elastic Container Registry)
+create a ECR repo on AWS
+#Install awscli
+apt update
+apt install python3-pip
+pip3 install awscli boto boto3
+aws configure > copy paste your access id & secret access key & default region when prompted.
+
+On ECR Console, select your ECR Repo>click 'View push commands'> copy paste to run all the commands in the instruction to first login to ECR & then push the docker image to ECR.
+
+you will notice that the image names are longer than what it was in dockerhub, that is because shorthand isnt enabled with private registries.
+
+make minor changes to nodejs app in server.js file & push the latest version to ECR using steps mentioned below:
+$ docker build -t my-app:1.1 .
+$ docker tag my-app:1.1 <ecr-repo-url>/my-app:1.1
+$ docker images
+$ docker push <ecr-repo-url>/my-app:1.1
+
+#Deploy the app using docker-compose:
+in docker-compose.yaml, make changes from line 3 to 6 in order to add ECR repo details like '<ecr-repo-url>/my-app:1.1' under 'image:' field & port 3000:3000 under 'ports:' field.
+
+$ docker-compose -f docker-compose.yaml up
+verify functionality of mongodb & cleanup with docker-compose down command
+-------------------------------------------------------------------
+## Docker Volumes: persistent Storage
+
+3 types of docker volumes: 
+- host volumes: docker run -v /some/path/on/host:/home/path/on/container
+- anonymous volumes: docker run -v /home/path/on/container  #not specifying host path which would trigger docker to automatically mount a default host path from /var/lib/docker/<random-hash>/_data
+- named volumes: docker run -v name:/home/path/on/container  #name of a volume on the host which is the recommended method of using docker volumes
+
+docker volumes location on linux & mac: /var/lib/docker/volumes
+
+https://docs.docker.com/storage/volumes/
+--------------------------------------------------------------------
+## CMD VS ENTRYPOINT
+create docker file with CMD & ENTRYPOINT> create 2 differrent images> run those containers seperately
+--------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

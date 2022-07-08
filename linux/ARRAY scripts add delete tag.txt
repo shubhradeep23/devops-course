@@ -1,0 +1,34 @@
+root@ip-172-31-6-62:~# cat create-tag.sh
+#!/bin/bash
+
+ARRAY=( i-05bd50f9faf6bd560 i-0d893f832b29983db i-0f9311da1d900409f i-0572aac9a60dd6f67 )
+region=ap-south-1
+
+for instance_id in "${ARRAY[@]}"; do
+    aws ec2 create-tags --resources $instance_id --region $region --tags Key=testkey,Value=testvalue Key=testkey1,Value=testvalue1 Key=testkey2,Value=testvalue2
+done
+root@ip-172-31-6-62:~# ls delete-tags.sh
+delete-tags.sh
+root@ip-172-31-6-62:~# cat delete-tags.sh
+#!/bin/bash
+
+ARRAY=( i-05bd50f9faf6bd560 i-0d893f832b29983db i-0f9311da1d900409f i-0572aac9a60dd6f67 )
+region=ap-south-1
+
+for instance_id in "${ARRAY[@]}"; do
+    aws ec2 delete-tags --resources $instance_id --region $region --tags Key=testkey,Value=testvalue Key=testkey1,Value=testvalue1 Key=testkey2,Value=testvalue2
+done
+root@ip-172-31-6-62:~# cat start-ec2.sh
+#!/bin/bash
+ARRAY=( i-05bd50f9faf6bd560 i-0d893f832b29983db i-0f9311da1d900409f i-0572aac9a60dd6f67 )
+
+for instance_id in "${ARRAY[@]}"; do
+    aws ec2 start-instances --instance-ids $instance_id
+done
+root@ip-172-31-6-62:~# cat stop-ec2.sh
+#!/bin/bash
+ARRAY=( i-05bd50f9faf6bd560 i-0d893f832b29983db i-0f9311da1d900409f i-0572aac9a60dd6f67 )
+
+for instance_id in "${ARRAY[@]}"; do
+    aws ec2 stop-instances --instance-ids $instance_id
+done

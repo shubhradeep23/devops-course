@@ -1,0 +1,19 @@
+## Project: Deploy K8s Cluster on Ubuntu
+Create ubuntu instance t2.medium for k8 master & worker nodes AMI.
+login as root> vim /etc/ssh/sshd_connfig > add following entries: 'PermitRootLogin yes' & 'PasswordAuthentication yes'> save the changes> service sshd restart> 
+set simple password for ubuntu temporarily so we can copy ansible servers ssh keys on this newly created machine: passwd ubuntu
+#On the Ansible server, copy the ssh keys of ansible machine to newly created server by running the below command:
+root@ansible-server$ ssh-copy-id ubuntu@<private-ip-ubuntu>
+root@ansible-server$ ssh ubuntu@<private-ip-ubuntu>   ## Test the passwordless ssh connection from ansible machine to newly created ubuntu server
+stop the newly created ubuntu server & create an AMI out of this newly created ubuntu server called k8-ami.
+modify the k8/create_k8_ec2.yaml to add the newly created ami id to ami section.
+
+root@ansible-server$ cd deploy-k8-cluster
+root@ansible-server$ ansible-playbook k8/create_k8_ec2.yaml    ## Create 2 EC2 instances for k8 cluster using the k8 AMI which you just created
+root@ansible-server$ ansible -i hosts -u ubuntu kube_cluster -m ping
+root@ansible-server$ ansible -i hosts -u ubuntu master -m ping
+root@ansible-server$ ansible -i hosts -u ubuntu worker -m ping
+root@ansible-server$ 
+
+
+error execution phase preflight: [preflight] Some fatal errors occurred:\n\t[ERROR FileContent--proc-sys-net-bridge-bridge-nf-call-iptables]: /proc/sys/net/bridge/bridge-nf-call-iptables does not exist\n\t[ERROR FileContent--proc-sys-net-ipv4-ip_forward]: /proc/sys/net/ipv4/ip_forward contents are not set to 1\n[preflight]

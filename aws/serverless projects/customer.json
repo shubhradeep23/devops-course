@@ -1,0 +1,22 @@
+[{
+    "customer_id": "5",
+    "name": "sachin",
+    "location": "Mumbai"
+},
+
+{
+    "customer_id": "6",
+    "name": "saurav",
+    "location": "Kolkata"
+},
+
+{
+    "customer_id": "7",
+    "name": "sehwag",
+    "location": "Delhi"
+},
+{
+    "customer_id": "8",
+    "name": "virat",
+    "location": "Delhi"
+}]

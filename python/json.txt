@@ -1,0 +1,13 @@
+https://oxylabs.io/blog/python-parse-json
+
+{
+   "name": "United States",
+   "population": 331002651,
+   "capital": "Washington D.C.",
+   "languages": [
+      "English",
+      "Spanish"
+   ]
+}
+
+#load the above data from json file & parse it

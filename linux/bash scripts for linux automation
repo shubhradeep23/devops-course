@@ -1,0 +1,10 @@
+https://youtu.be/q1TR9UGZ040
+
+#!/bin/bash
+Server_Name=$(uname -n)
+IP_Address=$(ifconfig| grep inet| awk 'NR==1{print $2}')
+OS_Type=$(uname)
+Up_time=$(uptime| awk '{print $3}')   # $3 prints the 3rd parameter of uptime
+
+#creating header in csv file
+echo "S_No,Server_Name,IP_Address,"

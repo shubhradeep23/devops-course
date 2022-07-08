@@ -1,0 +1,45 @@
+EC2: Compute
+Loadbalancer: ALB, NLB
+VPC: Networking components within VPC include Subnets, Security groups, NACL, Internet Gateway, NAT Gateway, Route Tables, Transit Gateway, Endpoint etc.
+S3, EBS, EFS: Storage
+Lambda: Serverless
+DynamoDB, RDS: Database
+IAM: Authentication
+Couldwatch, Cloudtrail:Monitoring
+EKS, ECS, Fargate: Container Orchestration
+Messaging: SNS, SQS
+Cloudformation: Infrastructure as Code/Automation
+---------------------------------
+create t2.micro ubuntu ec2 instance on default vpc with new security group with a new key pair.
+convert the pem key to .ppk key with puttygen.
+connect ot ec2 using putty.
+edit security group inbound rules to add a new rule with ssh protocol & My-IP so you local machines ip is allowed permission to access the default VPC resources.
+apt update
+apt install python3-pip
+pip3 install awscli boto boto3
+aws configure > copy paste your access id & secret access key & default region when prompted.
+--------
+create s3 bucket (private access) from aws console
+--------
+aws s3 cp s3://shubhradeep-bucket/workpad/filename.txt /root   #download file from s3 bucket to your ec2
+aws s3 cp hello.txt s3://shubhradeep-bucket/  #upload file from your ec2 to s3 bucket
+-----------
+## VPC Peering Practical: Establishing private connection between VPC's for secure communication
+
+after building the 2 VPC's, the EC2 intances, Subnets & Security Groups for each of the VPC's, try the following:
+- Examine the Route Tables.
+- connect through ssh to public vpc, public subnets ec2.
+- connect to ec2 through ssh created in the private subnet of public vpc through ec2 on the public subnet of same vpc.
+- Do Vpc Peering between public vpc & private vpc.
+- Add VPC Peering Routes to both VPC Route tables.
+- Add SSH & ICMP IPv4 Rules to all 3 Security Groups.
+- connect through ssh to ec2 in private subnet of private vpc from both ec2's of public vpc (both in private & public subnets of public vpc)
+
+SG Rules- Create SSH & All ICMP-IPv4 in Private VPC SG to allow Private Subnet of Public VPC. 
+----------------------------------------------------------------------------------------------
+## AWS Serverless: Refer to folder 'serverless projects' 
+---------------------------------------------------------------------------------------------
+
+
+
+

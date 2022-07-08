@@ -1,0 +1,107 @@
+- hosts: localhost
+  vars:
+    users:
+      - name: john smith
+        username: jsmith
+      - name: jane doe
+        username: jdoe
+  tasks:
+    - name: ensure user exists
+      user:
+        name: "{{ user.username }}"
+        comment: "{{ user.name }}"
+        state: present
+      become: true
+      loop: "{{ users }}"
+      loop_control:
+        loop_var: user
+
+    - name: create .gitconfig for each user
+      template:
+        src: .gitconfig.j2
+        dest: "/home/{{ user.username }}/.gitconfig"
+        owner: "{{ user.username }}"
+        group: "{{ user.username }}"
+        mode: 0644
+      loop: "{{ users }}"
+      loop_control:
+        loop_var: user
+-----------------------------
+#  .gitconfig.j2
+
+[user]
+  name = {{ user.name }}
+  username = {{ user.username }}
+  email = {{ user.username }}@example.com
+
+[core]
+  excludesfile = /home/{{ user.username }}/.gitignore
+_______________________________________________________________________________
+# templates using jinja2, need 2 other machines, centos & ubuntu
+- hosts: all
+  vars:
+    env: staging
+  tasks:
+    - name: template file onto remote hosts
+      become: true
+      template:
+        src: my_app.conf.j2
+        dest: /etc/my_app.conf
+        owner: root
+        group: root
+        mode: 0600
+-------------------------
+# my_app.conf.j2
+
+env = {{ env }}
+local_ip = {{ ansible_host }}
+local_user = {{ ansible_user }}
+----------------------------------------------------------------
+- hosts: all
+  vars:
+    env: staging
+    my_app_version: v1.1
+  tasks:
+    - name: template file onto remote hosts
+      become: true
+      template:
+        src: "{{ item }}".j2
+        dest: "/etc/{{ item }}"
+        owner: root
+        group: root
+        mode: 0600
+      loop: 
+        - my_app.conf
+        - my_app-release
+
+-------------------------
+# my_app-release.j2  under templates directory
+
+MyApp = {{ my_app_version }}
+_________________________________________________________
+      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+           

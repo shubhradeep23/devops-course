@@ -1,0 +1,5 @@
+- hosts: aws_ec2 
+  become: yes
+  tasks:
+    - name: Testing AWS Dynamic Inventory
+      shell: "echo testing aws dynamic inventory > dyn-inv.txt"

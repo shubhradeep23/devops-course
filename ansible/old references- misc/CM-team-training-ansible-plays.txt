@@ -1,0 +1,512 @@
+﻿
+#ANSIBLE DOCUMENTATION URL- https://docs.ansible.com/ansible/latest/index.html
+
+#LOOPS, ENVIRONMENT, ARGS 
+- hosts: all
+  become: true
+  tasks:
+    - name: use args, environment & loop with shell
+      shell: echo "Hello World!" > $TARGET
+      args:
+        chdir: /tmp
+      environment:
+        TARGET: "{{ item }}"
+      loop:
+        - test_file1
+        - test_file2		
+----------------------------------------------------------------
+#WHEN STATEMENT TO DYNAMICALLY RUN TASK WHEN DEPENDING ON OS OR ANY PARAMETER 
+root@ip-172-31-6-62:~/demo# cat when-example.yml
+---
+- hosts: all-webservers
+  become: true
+  gather_facts: yes
+  tasks:
+  - name: Update Ubuntu
+    apt: 
+      update_cache: yes    
+    when: ansible_facts['distribution'] == 'Ubuntu'  
+    
+  - name: Install apache2 on Ubuntu
+    apt:
+      name: apache2
+      state: present
+    when: ansible_facts['distribution'] == 'Ubuntu'
+
+  - name: Install httpd on Amazon Linux
+    package:
+      name: httpd
+      state: present
+    when: ansible_facts['distribution'] == 'Amazon'
+
+  - name: copy code
+    get_url:
+      #copy: /path/to/index.html  (path where index.html is present on the ansible server)
+      url: https://raw.githubusercontent.com/raktim00/DevOpsHW/master/index.html
+      dest: "/var/www/html/index.html"
+
+  - name: restart apache
+    service:
+      name: apache2
+      state: started
+      enabled: yes
+    when: ansible_facts['distribution'] == 'Ubuntu'
+
+  - name: restart httpd
+    service:
+      name: httpd
+      state: started
+      enabled: yes
+    when: ansible_facts['distribution'] == 'Amazon'
+...
+----------------------------------------------------------------
+#REVERSE WHEN PLAY BY UNINSTALLING APACHE & HTTPD
+---
+- hosts: all-webservers
+  become: true
+  tasks:
+  - name: Remove Apache2 from Ubuntu
+    apt:
+      name: apache2
+      state: absent
+    when: ansible_facts['distribution'] == 'Ubuntu'
+
+  - name: Remove httpd from Amazon Linux
+    yum:
+      name: httpd
+      state: absent
+    when: ansible_facts['distribution'] == 'Amazon'
+...
+
+------------------------------------------------------------------
+#JINJA TEMPLATE FOR COPYING CONFIGURATION FILES WITH DYNAMIC CONTENTS
+
+- hosts: all-webserver
+  vars_files:
+    - playbooks/vars/jinja2-example-vars.yaml
+  tasks:
+    - name: Checking the IP address
+      debug:
+        msg: "IP address {{ ip }}"
+    - name: Checking OS name
+      debug:
+        msg: "OS NAME {{ os_name }}"
+-----
+vars/jinja2-example-vars.yaml
+-----
+ip: "{{ inventory_hostname }}"
+os_name: "{{ ansible_distribution }}" 
+------------------------------------------------
+# tasks file for httpdserver, use get_url to download file or content from any website onto remote machine
+- name: install httpd
+  package:
+    name: httpd
+    state: present
+- name: copy code
+  get_url:
+    url: https://raw.githubusercontent.com/raktim00/DevOpsHW/master/index.html
+    dest: "/var/www/html/index.html"
+- name: start httpd
+  service:
+    name: httpd
+    state: started
+------------------------------------------------
+#HANDLERS ARE REPETATIVE TASKS CAN BE NOTIFIED AFTER ANY TASK, REDUCES THE NEED THE ADD MORE TASKS, SO INSTEAD, A COMMON HANDLER CAN BE NOTIFIED MULTIPLE TIMES WITHIN A PLAYBOOK.
+
+- hosts: all
+  become: yes
+  tasks:
+     - name: install apache2
+       apt: name=apache2 update_cache=yes state=latest
+  
+     - name: enabled mod_rewrite
+       apache2_module: name=rewrite state=present
+       notify:
+         - restart apache2
+
+     - name: Creates directory
+       file:
+         path: /var/www/html
+         state: directory
+
+     - name: copy index.html to www/html directory
+       copy:
+         src: myfiles/index.html
+         dest: /var/www/html/index.html
+         owner: root
+         group: root
+         mode: 0644
+
+  handlers:
+    - name: restart apache2
+      service: name=apache2 state=restarted
+----------------------------------------------------------
+#COPYING FILES USING TEMPLATE EXAMPLE WITH SOURCE OR MASTER TEMPLATE FILE RESIDING ON ANSIBLE CONTROL MACHINE WITH A .J2 EXTENSION WITH DYNAMIC CONTENT INSIDE OF THE J2 FILE.
+#DESTINATION SECTION SHOULD NOT HAVE J2 EXTENSION BECAUSE DESTINATION SHOULD HAVE THE ACTUAL EXTENSION LIKE .CONF, .TXT. .HTML ETC ETC.
+
+- hosts: localhost
+  vars_files:
+    - /root/myplatform/practice-playbooks/myfiles/vars-template.yml
+  tasks:
+    - name: using jinja2 templates
+      template:
+        src: /root/myplatform/practice-playbooks/myfiles/template.j2
+        dest: /root/myplatform/practice-playbooks/myfiles/test-template      
+----------------------------------------------------------
+#ROLES FOR CREATING DIRECTORY STRUCTURE, ANSIBLE-GALAXY COMMAND ALLOWS US TO DOWNLOAD READYMADE MODULES ALONG WITH A DIRECTORY STRUCTURE WHICH SEPERATE THE HANDLER, TASKS, FILES, TEMPLATES, VARS ETC FROM THE MAIN PLAYBOOK.
+
+ansible-galaxy init /etc/ansible/roles/apache --offline
+---
+- hosts: all
+  tasks:
+  - name: Install httpd Package
+    yum: name=httpd state=latest
+  - name: Copy httpd configuration file
+    copy: src=/data/httpd.original dest=/etc/httpd/conf/httpd.conf
+  - name: Copy index.html file
+    copy: src=/data/index.html dest=/var/www/html
+    notify:
+    - restart apache
+  - name: Start and Enable httpd service
+    service: name=httpd state=restarted enabled=yes
+  handlers:
+  - name: restart apache
+    service: name=httpd state=restarted
+------------------------------------------
+#MASTER PLAYBOOK WHICH CALLS ROLES FROM THE ROLES DIRECTORY
+
+[root@learnitguide apache]# cat /etc/ansible/runsetup.yml
+---
+ - hosts: node2
+   roles:
+   - common
+   - apache
+-------------------------------
+#MORE COMMON ANSIBLE MODULES - APT MODULE
+- name: Install apache httpd  (state=present is optional)
+  apt:
+    name: apache2
+    state: present
+
+- name: Update repositories cache and install "foo" package
+  apt:
+    name: foo
+    update_cache: yes
+
+- name: Remove "foo" package
+  apt:
+    name: foo
+    state: absent
+
+- name: Install the package "foo"
+  apt:
+    name: foo
+
+- name: Install a list of packages
+  apt:
+    pkg:
+    - foo
+    - foo-tools
+--------------------------------------------------------
+# YUM MODULE
+- name: install the latest version of Apache
+  yum:
+    name: httpd
+    state: latest
+
+- name: ensure a list of packages installed
+  yum:
+    name: "{{ packages }}"
+  vars:
+    packages:
+    - httpd
+    - httpd-tools
+--------------------------------------------------------
+#ADD OR DELETE YUM REPO
+
+- name: Add repository
+  yum_repository:
+    name: epel
+    description: EPEL YUM repo
+    baseurl: https://download.fedoraproject.org/pub/epel/$releasever/$basearch/
+
+- name: Add multiple repositories into the same file (1/2)
+  yum_repository:
+    name: epel
+    description: EPEL YUM repo
+    file: external_repos
+    baseurl: https://download.fedoraproject.org/pub/epel/$releasever/$basearch/
+    gpgcheck: no
+
+- name: Add multiple repositories into the same file (2/2)
+  yum_repository:
+    name: rpmforge
+    description: RPMforge YUM repo
+    file: external_repos
+    baseurl: http://apt.sw.be/redhat/el7/en/$basearch/rpmforge
+    mirrorlist: http://mirrorlist.repoforge.org/el7/mirrors-rpmforge
+    enabled: no
+
+# Handler showing how to clean yum metadata cache
+- name: yum-clean-metadata
+  command: yum clean metadata
+  args:
+    warn: no
+
+# Example removing a repository and cleaning up metadata cache
+- name: Remove repository (and clean up left-over metadata)
+  yum_repository:
+    name: epel
+    state: absent
+  notify: yum-clean-metadata
+----------------------------------------------------------------
+#SERVICE MODULE FOR RESTARTING, STOPPING, STARTING, ENABLING, DISABLING OF VARIOUS SERVICES RUNNING WITHIN LINUX OS
+
+- name: Start service httpd, if not started
+  service:
+    name: httpd
+    state: started
+
+- name: Stop service httpd, if started
+  service:
+    name: httpd
+    state: stopped
+
+- name: Restart service httpd, in all cases
+  service:
+    name: httpd
+    state: restarted
+
+- name: Reload service httpd, in all cases
+  service:
+    name: httpd
+    state: reloaded
+
+- name: Enable service httpd, and not touch the state
+  service:
+    name: httpd
+    enabled: yes
+
+- name: Start service foo, based on running process /usr/bin/foo
+  service:
+    name: foo
+    pattern: /usr/bin/foo
+    state: started
+
+- name: Restart network service for interface eth0
+  service:
+    name: network
+    state: restarted
+    args: eth0
+----------------------------------------------------------------
+#FILE MODULE URL: POPULAR MODULES WITH THE FILE MODULES ARE FILE FOR CREATING DIRECTORIES, FILES ETC, COPY MODULE, BLOCKINFILE MODULE TO EDIT CHUNK OR A BLOCK OF A FILE, LINEINFILE MODULE TO EDIT A LINE IN A FILE, FETCH MODULE TO FETCH A FILE OR MULTIPLE FILES FROM REMOTE MACHINE TO THE ANSIBLE CONTROL MACHINE, REPLACE MODULE TO REPLACE A STRING IN A FILE
+
+https://docs.ansible.com/ansible/latest/modules/list_of_files_modules.html
+
+---------------------------------------------------------------
+#GIT MODULE FOR GIT CHECKOUTS & CLONING GIT REPOSITORIES
+
+# Example Create git archive from repo
+- git:
+    repo: https://github.com/ansible/ansible-examples.git
+    dest: /src/ansible-examples
+    archive: /tmp/ansible-examples.zip
+
+#CLONE A GIT REPO	
+- git:
+    repo: https://github.com/ansible/ansible-examples.git
+    dest: /src/ansible-examples
+    separate_git_dir: /src/ansible-examples.git
+-------------------------------------------------------------
+#LOOKUP DICTIONARY: Takes dictionaries as input and returns a list with each item in the list being a dictionary with ‘key’ and ‘value’ as keys to the previous dictionary’s structure.
+#dict – returns key/value pair items from dictionaries
+
+vars:
+  users:
+    alice:
+      name: Alice Appleworth
+      telephone: 123-456-7890
+    bob:
+      name: Bob Bananarama
+      telephone: 987-654-3210
+tasks:
+  # with predefined vars
+  - name: Print phone records
+    debug:
+      msg: "User {{ item.key }} is {{ item.value.name }} ({{ item.value.telephone }})"
+    loop: "{{ lookup('dict', users) }}"
+  # with inline dictionary
+  - name: show dictionary
+    debug:
+      msg: "{{item.key}}: {{item.value}}"
+    with_dict: {a: 1, b: 2, c: 3}
+  # Items from loop can be used in when: statements
+  - name: set_fact when alice in key
+    set_fact:
+      alice_exists: true
+    loop: "{{ lookup('dict', users) }}"
+    when: "'alice' in item.key"
+---------------------------------------------------------
+#nested – composes a list with nested elements of other lists	
+	
+- name: give users access to multiple databases
+  mysql_user:
+    name: "{{ item[0] }}"
+    priv: "{{ item[1] }}.*:ALL"
+    append_privs: yes
+    password: "foo"
+  with_nested:
+    - [ 'alice', 'bob' ]
+    - [ 'clientdb', 'employeedb', 'providerdb' ]
+# As with the case of 'with_items' above, you can use previously defined variables.:
+
+- name: here, 'users' contains the above list of employees
+  mysql_user:
+    name: "{{ item[0] }}"
+    priv: "{{ item[1] }}.*:ALL"
+    append_privs: yes
+    password: "foo"
+  with_nested:
+    - "{{ users }}"
+    - [ 'clientdb', 'employeedb', 'providerdb' ]	
+------------------------------------------------------------
+# SHELL & COMMAND MODULES
+
+- name: Execute the command in remote shell; stdout goes to the specified file on the remote.
+  shell: somescript.sh >> somelog.txt
+
+- name: Change the working directory to somedir/ before executing the command.
+  shell: somescript.sh >> somelog.txt
+  args:
+    chdir: somedir/
+
+- name: return motd to registered var
+  command: cat /etc/motd
+  register: mymotd
+
+- name: Change the working directory to somedir/ and run the command as db_owner if /path/to/database does not exist.
+  command: /usr/bin/make_database.sh db_user db_name
+  become: yes
+  become_user: db_owner
+  args:
+    chdir: somedir/
+    creates: /path/to/database  
+--------------------------------------------------------------------------
+#REGISTER A OUTPUT OF A TASK TO BE USED AS A VARIABLE FOR OTHER TASKS
+
+- hosts: web_servers
+
+  tasks:
+
+     - shell: /usr/bin/foo
+       register: foo_result
+       ignore_errors: True
+
+     - shell: /usr/bin/bar
+       when: foo_result.rc == 5
+--------------------------------------------------------------------------	   
+- hosts: localhost
+  vars:
+    users:
+      - name: john smith
+        username: jsmith
+      - name: jane doe
+        username: jdoe
+  tasks:
+    - name: ensure user exists
+      user:
+        name: "{{ user.username }}"
+        comment: "{{ user.name }}"
+        state: present
+      become: true
+      loop: "{{ users }}"
+      loop_control:
+        loop_var: user
+
+    - name: create .gitconfig for each user
+      template:
+        src: .gitconfig.j2
+        dest: "/home/{{ user.username }}/.gitconfig"
+        owner: "{{ user.username }}"
+        group: "{{ user.username }}"
+        mode: 0644
+      loop: "{{ users }}"
+      loop_control:
+        loop_var: user
+-----------------------------
+#  .gitconfig.j2
+
+[user]
+  name = {{ user.name }}
+  username = {{ user.username }}
+  email = {{ user.username }}@example.com
+
+[core]
+  excludesfile = /home/{{ user.username }}/.gitignore
+_______________________________________________________________________________
+# templates using jinja2, need 2 other machines, centos & ubuntu
+- hosts: all
+  vars:
+    env: staging
+  tasks:
+    - name: template file onto remote hosts
+      become: true
+      template:
+        src: my_app.conf.j2
+        dest: /etc/my_app.conf
+        owner: root
+        group: root
+        mode: 0600
+-------------------------
+# my_app.conf.j2
+
+env = {{ env }}
+os = {{ ansible_distribution }}
+local_user = {{ ansible_user }}
+----------------------------------------------------------------
+- hosts: all
+  vars:
+    env: staging
+    my_app_version: v1.1
+  tasks:
+    - name: template file onto remote hosts
+      become: true
+      template:
+        src: "{{ item }}".j2
+        dest: "/etc/{{ item }}"
+        owner: root
+        group: root
+        mode: 0600
+      loop: 
+        - my_app.conf
+        - my_app-release
+
+-------------------------
+# my_app-release.j2  under templates directory
+
+MyApp = {{ my_app_version }}
+_________________________________________________________
+      	   
+	   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

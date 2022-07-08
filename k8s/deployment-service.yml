@@ -1,0 +1,97 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: order
+  template:
+    metadata:
+      labels:
+        app: order
+    spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:order
+        name: order
+        ports:
+        - containerPort: 5678
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: order-service
+spec:
+  selector:
+    app: order
+  ports:
+    - port: 5678
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: refund
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: refund
+  template:
+    metadata:
+      labels:
+        app: refund
+    spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:refund
+        name: refund
+        ports:
+        - containerPort: 5678
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: refund-service
+spec:
+  selector:
+    app: refund
+  ports:
+    - port: 5678
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-example
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+  - http:
+      paths:
+      - path: /order
+        pathType: Prefix
+        backend:
+          service: 
+            name: order-service
+              port:
+                number: 5678
+      - path: /refund
+        pathType: Prefix
+        backend:
+          service: 
+            name: refund-service
+              port:
+                number: 5678
+---

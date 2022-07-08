@@ -1,0 +1,26 @@
+[
+    {
+        "emp_id": "10",
+        "name": "rahul",
+        "age": 45,
+        "location": "Pakistan"
+    },
+    {
+        "emp_id": "11",
+        "name": "sachin",
+        "age": 46,
+        "location": "Chile"
+    },
+    {
+        "emp_id": "12",
+        "name": "pele",
+        "age": 71,
+        "location": "brazil"
+    },
+    {
+        "emp_id": "13",
+        "name": "virat",
+        "age": 32,
+        "location": "india"
+    }
+]

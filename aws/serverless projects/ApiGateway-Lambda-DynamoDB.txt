@@ -1,0 +1,27 @@
+#create policy with dynamodb & cloudwatch logs
+#create a role & attach the newly created policy to the role
+#create a lambda & attach the above role to lambda
+#create dynamodb table with primary key as customer_id (str)
+#check event in cloudwatch logs
+
+
+import boto3
+dynamodb = boto3.resource('dynamodb')
+table = dynamodb.Table('CUSTOMERS')
+
+def lambda_handler(event, context):
+  table.put_item(Item=event)  
+  return{"status_code": 200, "message": "Record inserted into DynamoDB"}
+--------------------------------
+import boto3
+
+dynamodb = boto3.resource('dynamodb').Table('customers')
+
+def lambda_handler(event, context):
+    #dynamodb.put_item(Item=event)
+    with dynamodb.batch_writer() as batch:
+        for cust in event:
+            print(cust)
+            batch.put_item(Item=cust)
+    return {"status_code": 200, "Message": "Record inserted into dynamodb"}
+-------------------------------------

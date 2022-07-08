@@ -1,0 +1,70 @@
+
+load-balancer-role-trust-policy.json
+-------------------------------------
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Principal": {
+                "Federated": "arn:aws:iam::891190821806:oidc-provider/oidc.eks.region-code.amazonaws.com/id/C77107EA361D52A135D419E1A2975938"
+            },
+            "Action": "sts:AssumeRoleWithWebIdentity",
+            "Condition": {
+                "StringEquals": {
+                    "oidc.eks.region-code.amazonaws.com/id/C77107EA361D52A135D419E1A2975938:aud": "sts.amazonaws.com",
+                    "oidc.eks.region-code.amazonaws.com/id/C77107EA361D52A135D419E1A2975938:sub": "system:serviceaccount:kube-system:aws-load-balancer-controller"
+                }
+            }
+        }
+    ]
+}
+-------------------------------------
+aws iam attach-role-policy \
+  --policy-arn arn:aws:iam::891190821806:policy/AWSLoadBalancerControllerIAMPolicy \
+  --role-name AmazonEKSLoadBalancerControllerRole
+--------------------------------------
+aws-load-balancer-controller-service-account.yaml
+---------------
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: controller
+    app.kubernetes.io/name: aws-load-balancer-controller
+  name: aws-load-balancer-controller
+  namespace: kube-system
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::891190821806:role/AmazonEKSLoadBalancerControllerRole
+---------------------------------------------------------------
+kubectl apply -f aws-load-balancer-controller-service-account.yaml
+----------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,221 @@
+0:00  - Intro
+0:57  - Agenda
+6:07  - What is Jenkins
+9:56  - What is DevOps?
+11:57 -  What is Continuous Integration?
+15:28 - DevOps Lifecycle
+16:15 - How to Install Jenkins?
+24:28 - How to Install Jenkins on Linux?
+31:07 - Jenkins Architecture: Master Slave
+37:51 - Create First Free Style Job
+44:07 - Scheduling Job
+49:16 - Remote Build Trigger
+51:43 - Parameterized Job
+54:37 - Webhook and Poll SCM
+1:11:33 - Jenkins Maven Integration
+1:23:03 - Creating Users
+1:26:04 - Role Based Access Control
+1:32:36 - Jenkins Configure System
+1:38:07 - Creating Email Notifications
+1:44:35 - Jenkins Pipeline
+1:45:05 - What is Jenkins Pipeline
+1:49:15 - Create Jenkins Pipeline Job
+1:56:46 - Maven Java Jenkins Pipeline Job
+2:03:13 - Jenkins on Docker
+2:10:12 - Jenkins on Docker with Persistent Volume
+2:13:22 - Jenkinsfile
+2:17:47 - Jenkins pipeline to build Docker Image
+2:26:35 - Jenkins Multibrach Pipeline
+
+Install Jenkins on Ubuntu EC2: https://www.digitalocean.com/community/tutorials/how-to-install-jenkins-on-ubuntu-20-04
+OR follow instructions about jenkins installation from word document 'Devops Project Documentation'.
+
+Master & Slave Setup: https://chathura-siriwardhana.medium.com/step-by-step-guide-to-add-jenkins-slave-nodes-f2e756c8849e
+manage jenkins > manage nodes & clouds > configure slave settings (label is used by jobs for delegating jobs to slave)
+> enable password authentication in /etc/ssh/sshd_config > generate ssh keys with ssh-keygen & copy the ssh key to slave machine with ssh-copy-id -i root@slave-ip
+> enter slave node ip & password > install java on slave machines
+
+Freestyle Jobs:
+create freestyle project > check box- Restrict where this project is run > under Label Expression, enter the label of slave
+under Build section, Add build step, select Execute Shell > echo "hello world !" > save > build now
+
+Email Notification: configure SMTP for google account, use google app password
+Freestyle job settings> Under Post build action > select post build failure.
+
+Extended E-mail Notification 
+- SMTP server: smtp.gmail.com
+- SMTP Port: 465
+- Default Recipients: <your-email@email.com>
+- Tick/Select the Checkbox "Allow Sending to unregistered users" > Save
+
+Remote build trigger with CRON expression. check Trigger builds remotely> enter a name under Authentication token > copy jenkins url path for token > from a web browser< paste the path & press enter > you would see that the job with remote build trigger has started in the jenkins UI
+The remote build trigger method is useful when we ahve to trigger a job from with a script like python or shell script.
+
+Parameterized jobs: Freestyle job> check this project is parameterized> add paramenter> string parameter > Enter Name like env & default value as prod> save > In UI, you would see build with parameters instead of build now. Now when building, you would get the option to enter as value like prod or dev
+also choice parameter can be used where we can list line by line dev, test prod> now you will get a choice after clicking build with parameters.
+
+Poll SCM and webhook triggers
+
+Jenkins Maven Integration: Maven Lifecycle
+to get JAVA_HOME path, command is: alternatives --config java
+
+publish over ssh plugin: configure in manage jenkin> configure systems> publish over ssh> add ssh server> 
+
+Multi Branch Pipeline: https://www.lambdatest.com/blog/how-to-create-jenkins-multibranch-pipeline/
+purpose of using this plugin is to target specific branches for specific tasks, like dev branch will build, do sonar analysis while master branch deploys app to prod.
+----------------------------------------------
+Jenkins file:
+
+CODE_CHANGES = getGitChanges()
+pipeline {
+    agent any {
+	stage('build') {
+        when {
+          expression {
+            BRANCH_NAME == 'dev' 
+#OR         BRANCH_NAME == 'dev' || BRANCH_NAME == 'master'
+#OR         BRANCH_NAME == 'dev' && CODE_CHANGES == 'true'
+        }
+      }
+    }
+  }
+}
+----------------------------------------
+#Environmental variables
+
+Display all Global variables- http://jenkins-url:8080/env-vars.html
+
+topics: env vars
+        credentials as env vars or as functions like withCredentails
+        tools like maven jdk, check in global tool configuration for tool name you have given
+        Parameters- refer to github jenkinsfile code to explain this topic, we get an option to build with parameters
+
+pipeline {
+    agent any {
+    tools {
+        maven 
+        jdk
+    }
+    environment {
+        NEW_VERSION = '1.2.0'
+	  SERVER_CREDENTIALS = credentials('server-creds')
+    }
+    stages {
+      stage('build') {
+        steps {
+            echo 'building the application...'
+            echo "building version with ${NEW_VERSION}"
+#	      echo 'building version with ${NEW_VERSION}' #this wont work as interpolating env variables requires enclosing in double quotes
+         }
+       }
+     } 
+      stage('test') {
+        steps {
+            echo 'testing the application...' 
+        }
+      }
+       stage('deploy') {
+         steps {
+             echo 'deploying the application...'
+ 	       echo "deploying with credentials ${SERVER_CREDENTIALS}"
+#OR	       withCredentials([
+		     usernamePassword(credentails: 'server-credentials' usernameVariable: USER, passwordVariable:PWD)
+         ]) {
+                 sh "./some-script.sh" ${USER} ${PWD}"
+         }
+	 }
+     }
+   }
+ }
+-------------------------------------------------------------------------
+
+jenkins project with github, maven, docker: 
+SCM checkout > maven build > junit in post > docker build, docker login (dockerhub) > deploy to docker & expose port to container
+------------------------------------------------
+docker build -t java-app .
+docker run -p 8085:80 java-app
+----------------------------------------
+dockerhub: shubhradeep23/test-app
+github repo: jenkins-project (public)
+
+alias start-sonar='docker run -d -p 9000:9000 -v sonarqube_conf:/opt/sonarqube/conf -v sonarqube_extensions:/opt/sonarqube/extensions -v sonarqube_logs:/opt/sonarqube/logs -v sonarqube_data:/opt/sonarqube/data sonarqube
+-------------------------------------------
+
+## Jenkins Pipeline: Deploy Java App on Remote Docker EC2 using Ansible 
+Pre-requisites in Jenkins: 
+A. Install Ansible Plugin in Jenkins
+B. Manage Jenkins> Manage Credentials> Add Credentials> 
+   - Kind: SSH Username with private key
+   - ID: docker-host
+   - Username: ubuntu
+   - Private Key: select 'Enter Directly'> Copy Paste the entire content of pem file you used to create AWS EC2 instances downloaded on your personal machine
+   - Click OK
+C. Manage Jenkins> Global Tool Configuration> Add Ansible:
+   - Name: ansible
+   - Path to ansible executables directory: /usr/local/bin/
+   - Save
+
+Step 1: Create a ubuntu EC2 t2.micro with same pem keys> default VPC> default Security Group> change storage to 30GB (optional).
+Step 2: Create empty github repo without README.md
+Step 3: Download the zip file: https://github.com/shubhradeep23/Jenkins-Pipeline-Deploy-Java-Docker-Host-Ansible.git
+Step 4: Create empty folder & extract above zip to this empty folder.
+Step 5: Open above folder you created in VS Code editor & make the following changes:
+
+change 1:
+Under ansible directory, open hosts> add private-ip under [docker-host]
+
+change 2:
+Under ansible directory, open docker.yml> change image name from the command mentioned below-
+ansible.builtin.shell: sudo docker run -d -p 8085:8085 "<image-name>:{{image_tag}}"
+
+change 3:
+Under ansible directory, open install-docker.yml
+default_container_image: "<image-name>:{{image_tag}}"
+
+change 4:
+In Jenkinsfile, under 'environment' block, change the following variables: 
+imagename = <your-dockerhub-username>/<dockerhub-repo-or-image-name>  
+tag = <image-tag>
+docker_host = <private-ip-ec2-docker-host>
+registryCredential = 'dockerhub-cred'
+dockerImage = ''
+CHECK_URL = "http://<public-ip-ec2-docker-host>:<port no>/greeting"          
+
+Step 6: VS Code Editor, open new terminal> type the below commands to commit & push the changes you made to the empty github repo you created in step 2.
+git init
+git add .
+git commit -m "Jenkins Pipeline: Deploy Java App on Remote Docker EC2 using Ansible "
+git branch -M main
+git remote add origin https://<your-github-repo>.git
+git push -u origin main
+
+Verify if java app is reachable through web browser with url: <public-ip-ec2-docker-host>:8085/greeting
+---------------------------------------------------------------------------------------------------------------
+## Shared Library: Reuse code in Jenkinsfile to avoid repeating identical Jenkinsfile in multiple projects
+follow the instructions in README.md from https://github.com/shubhradeep23/Jenkins-Shared-library-Example.git
+---------------------------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

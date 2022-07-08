@@ -1,0 +1,35 @@
+https://www.digitalocean.com/community/tutorials/how-to-set-up-an-nfs-mount-on-ubuntu-20-04
+
+# On NFS server
+$ apt update
+$ apt install nfs-kernel-server
+$ apt install nfs-common
+$ mkdir /var/nfs/general -p
+$ ls -la /var/nfs/general
+$ chown nobody:nogroup /var/nfs/general
+$ vim /etc/exports
+/var/nfs/general   *(rw,sync,no_subtree_check,insecure)
+/home   *(rw,sync,no_subtree_check,no_root_squash,no_all_squash,insecure)
+
+$ exportfs -rav
+$ systemctl restart nfs-kernel-server
+$ vim /etc/fstab
+nfs_server_ip:/var/nfs/general    /nfs/general   nfs auto,nofail,noatime,nolock,intr,tcp,actimeo=1800 0 0
+nfs_server_ip:/home               /nfs/home      nfs auto,nofail,noatime,nolock,intr,tcp,actimeo=1800 0 0
+
+# On Client machines
+$ apt update
+$ apt install nfs-common
+$ mkdir -p /nfs/general
+$ mkdir -p /nfs/home
+$ mount nfs_server_ip:/var/nfs/general /nfs/general
+$ mount nfs_server_ip:/home /nfs/home
+$ df -h
+$ du -sh /nfs/home
+$ vim /nfs/general/general.test
+$ ls -l /nfs/general/general.test
+$ vim /nfs/home/home.test
+$ ls -l /nfs/home/home.test
+$ vim /etc/fstab
+nfs_server_ip:/var/nfs/general    /nfs/general   nfs auto,nofail,noatime,nolock,intr,tcp,actimeo=1800 0 0
+nfs_server_ip:/home               /nfs/home      nfs auto,nofail,noatime,nolock,intr,tcp,actimeo=1800 0 0

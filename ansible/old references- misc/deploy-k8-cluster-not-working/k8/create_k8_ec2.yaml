@@ -1,0 +1,37 @@
+- name: Provision Ubuntu & Amazon Linux EC2 Instances
+  hosts: localhost
+  tasks:
+  - name: Provision Ubuntu EC2 Instances
+    amazon.aws.ec2:
+      key_name: mumbai-key
+      region: ap-south-1
+      instance_type: t2.medium
+      image: ami-08afe08d6ad8081bf
+      wait: yes
+      wait_timeout: 500
+      count: 1
+      instance_tags:
+        k8: master
+      monitoring: yes
+      group_id: sg-05bc8adcf00d08f5e
+      vpc_subnet_id: subnet-0d1003b6d85c91568
+      assign_public_ip: yes
+    tags: k8_master
+
+  - name: Provision Amazon Linux EC2 Instances
+    amazon.aws.ec2:
+      key_name: mumbai-key
+      region: ap-south-1
+      instance_type: t2.medium
+      image: ami-08afe08d6ad8081bf
+      wait: yes
+      wait_timeout: 500
+      count: 1
+      instance_tags:
+        k8: worker
+      monitoring: yes
+      group_id: sg-05bc8adcf00d08f5e
+      vpc_subnet_id: subnet-0d1003b6d85c91568
+      assign_public_ip: yes
+    tags: k8_worker
+

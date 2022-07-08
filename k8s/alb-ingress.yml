@@ -1,0 +1,115 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress-sample
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order
+  namespace: ingress-sample
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: order
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: order
+    spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:order
+        imagePullPolicy: Always
+        name: order
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+  namespace: ingress-sample
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: order
+  ports:
+    - port: 5678
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: refund
+  namespace: ingress-sample
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: refund
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: refund
+    spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:refund
+        imagePullPolicy: Always
+        name: refund
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: refund-service
+  namespace: ingress-sample
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: refund
+  ports:
+    - port: 5679
+      targetPort: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-example
+  namespace: ingress-sample
+  annotations:
+    #kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+        - path: /order
+          pathType: Prefix
+          backend:
+            service: 
+              name: order-service
+              port:
+                number: 5678
+        - path: /refund
+          pathType: Prefix
+          backend:
+            service: 
+              name: refund-service
+              port:
+                number: 5679
+---

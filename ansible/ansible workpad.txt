@@ -1,0 +1,152 @@
+#Install Ansible on ubuntu
+$ apt update && apt upgrade -y   
+$ apt install -y python3-pip 
+$ pip3 install ansible
+$ ansible   ## verify if ansible is installed correctly
+$ python3  ##verify if python is already installed & type 'exit()' in python terminal
+$ pip3 install boto boto3 awscli
+$ aws configure  ## Copy paste AWS Access id & Secrey Key when prompted, Also enter default region 'ap-south-1' & format as 'json'
+
+AMI IDs: ap-south-1 (Mumbai)
+Amazon Linux: ami-0a3277ffce9146b74
+Ubuntu 20.04: ami-0851b76e8b1bce90b
+-----------------------------
+ansible-playbook ec2/ec2.yaml   ## Run ansible playbook ec2/ec2.yaml to create ubuntu & amazon-linux ec2 instances
+enable root login & password authentication in both ubuntus & amazon linux machines which were just created in /etc/ssh/sshd_config > restart sshd_config service
+change root password to root by typing command: passwd root
+restart servers
+Under ansible/ec2 directory, run the script to format server_ips > then run the script to copy ssh keys
+-------------
+#!/bin/bash
+#aws ec2 describe-instances --query Reservations[*].Instances[*].[InstanceId]   ## outputs only instance id which will be using for awsclo operation like copying ansible ssh keys to target servers
+aws ec2 describe-instances --query Reservations[*].Instances[*].[PrivateIpAddress] > server-ips
+sed -i 's/\[//g' server-ips
+sed -i 's/\]//g' server-ips
+sed -i 's/\"//g' server-ips
+sed -i 's/\,//g' server-ips
+cat server-ips | sed '/^$/d' > server_ips
+rm server-ips
+------------------------------------------------------
+ansible -i hosts all-webservers -m ping --limit localhost
+
+create ami's of amazon-linux & ubuntu after changing back the sshd_config settings (PermitRootLogin without-password && PasswordAuthentication no) ## for future use & to avoid repetitive work of copying ansible ssh keys to target machines
+
+## Inventory: Hosts file static inventory
+cd static-inv/   ## Look into hosts file to examine how the static inventory was build
+
+## Loop, Args, Env 
+ansible-playbook -i hosts playbooks/loop-args-env-play.yaml
+
+## File functions: file, copy, template, line-in-file, block-in-file, fetch, replace
+
+## Handler: Refer to CM-team-training-ansible-plays file for examples
+
+## Jinja2 Templates
+ansible-playbook -i hosts playbooks/jinja2-example1.yaml
+Refer to variables file in playbooks/vars/jinja2-example-vars.yaml
+
+ansible-playbook -i hosts playbooks/jinja2-example2.yaml
+Refer to Jinja2 my_app.conf.j2 file in playbooks/files/my_app.conf.j2
+ssh into both ubuntu & amazon-linux machines & check the file /etc/my_app.conf
+
+## When Condition: Deploy Webservers on Ubuntu & Amazon Linux
+ansible-machine$ ansible-playbook -i hosts playbooks/apache-ubuntu-httd-amazonLinux.yaml
+ansible-machine$ ssh root@private-ip-ubuntu 
+ansible-machine$ exit
+ubuntu-machine$ service sshd status ## Verify if Apache2 service is running
+Repeat the same steps to ssh into Amazon linux machine & check httpd service
+amazon-linux$ systemctl status httpd  ## Verify if httpd service is running
+amazon-linux$ exit
+ansible-machine$ ansible-playbook -i hosts playbooks/remove-apache-ubuntu-httd-amazonLinux.yaml  ##Cleanup configuration on target machines
+
+topics to complete today: dynamic inventory, dict, json, uri module.
+
+##Register: register output of commands or tasks to be used later by other tasks
+ansible-playbook -i hosts playbooks/register-vars.yaml
+ansible-playbook -i hosts playbooks/register-vars-pwgen.yaml
+
+##Loop
+ansible-playbook -i hosts playbooks/loop-directory-contents.yaml
+ansible-playbook -i hosts playbooks/loop-args-env-play.yaml
+
+## Tags: Execute Specific Tasks using Tags from the same playbook
+ansible-playbook ec2/ec2.yaml --list-tags
+ansible-playbook ec2/ec2.yaml --tags "ubuntu" --list-tasks  ## One task could have multiple tags, should be seperated with comma in playbook. Refer to ansible documentation.
+ansible-playbook ec2/ec2.yaml --tags "ubuntu"  ## Only ubuntu EC2 will be created
+
+## Backup Directories
+ansible-playbook -i hosts playbooks/backup.yaml
+
+## User Creation: Refer to playbooks/files..gitconfig.j2 to underdstand usage of Jinja2 templating, Loops
+ansible-playbook -i hosts playbooks/user-creation.yaml
+
+#Dictionary
+ansible-playbook playbooks/dict.yaml
+
+#add directory empty debug task from link below
+https://linuxhint.com/ansible_register_module/
+
+##Dynamic Inventory: Plugin- Workpad
+https://docs.ansible.com/ansible/latest/collections/amazon/aws/aws_ec2_inventory.html
+https://medium.com/awsblogs/ansible-dynamic-inventory-d7c1c57f0a93
+
+root@ansible-server$ ansible-galaxy collection install amazon.aws
+root@ansible-server$ vim aws_ec2.yml   ##paste the below content
+plugin: aws_ec2
+regions:
+  - ap-south-1
+  filters:
+    tag:webserver:
+      - ubuntu
+      - amazon-linux
+    tag:Name:
+      - ubuntu
+      - amazon-linux    
+---------------
+root@ansible-server$ ansible-inventory -i aws_ec2.yml --list  ## outputs the aws inventory details like all the servers we created
+root@ansible-server$ ansible-inventory -i aws_ec2.yml --graph
+root@ansible-server$ ansible aws_ec2 -i aws_ec2.yml -m ping --private-key=mumbai-key.pem
+root@ansible-server$ ansible aws_ec2 -i aws_ec2.yml -m ping --private-key=mumbai-key.pem --become
+
+ansible aws_ec2 -i aws_ec2.yml -u ec2-user -m ping --private-key=mumbai-key.pem --become   #Only ping Amazon-linux machine
+ansible aws_ec2 -i aws_ec2.yml -u ubuntu -m ping --private-key=mumbai-key.pem --become    #Only ping Ubuntu Machine
+ansible-playbook --private-key mumbai-key.pem -i aws_ec2.yml playbooks/dyn-inv-test.yaml  ## works only on anazon-lix as ec2-user is specified
+
+#create seperate inventory files for different tags
+---------------------------------------------------------------------
+##Dynamic Inventory: Plugin - Final Draft
+cd ansible/aws-dyn-in/
+ansible-inventory -i dev_aws_ec2.yml --list
+ansible-inventory -i prod_aws_ec2.yml --list
+ansible aws_ec2 -i dev_aws_ec2.yml -u ec2-user -m ping --private-key=mumbai-key.pem --become
+ansible aws_ec2 -i prod_aws_ec2.yml -u ubuntu -m ping --private-key=mumbai-key.pem --become
+ansible-playbook -u ec2-user --private-key mumbai-key.pem -i dev_aws_ec2.yml playbooks/dyn-inv-test.yaml
+ssh root@<private-ip-dev-instance>
+
+---------------------------------------------------
+## URI: Working with URLs & APIs
+
+- hosts: localhost
+  become: yes
+  tasks:
+  - name: Pause play until a URL is reachable from this host
+    uri:
+      url: "https://jsonplaceholder.typicode.com/todos/1"
+      follow_redirects: none
+      method: GET
+    register: _result
+    until: _result.status == 200
+    retries: 720 # 720 * 5 seconds = 1hour (60*60/5)
+    delay: 5
+  
+  - name: Display the Result
+    debug:
+      msg: "{{ _result }}"
+---
+ansible-playbook playbooks/uri.yaml
+---------------------------------------------------
+## Roles: https://www.redhat.com/sysadmin/ansible-galaxy-intro
+ansible-galaxy init  #initiazes a bioler plate template of directories & files from where you can start customizing the playbooks & files
+
+
+

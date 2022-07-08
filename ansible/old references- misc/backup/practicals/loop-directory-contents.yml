@@ -1,0 +1,11 @@
+- hosts: ubuntu-webservers
+  #user: ansible
+  become: True
+  tasks:
+    - name: List all files and directories in /home/ansible
+      shell: ls -la /root
+      register: dir_contents
+    - name: Print directory contents using loops
+      debug:
+        msg: "{{ item }}"
+      loop: "{{ dir_contents.stdout_lines }}"

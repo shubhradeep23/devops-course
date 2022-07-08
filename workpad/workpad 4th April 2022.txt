@@ -1,0 +1,594 @@
+1st commit 8th July 2022
+
+Jenkins data: /var/lib/jenkins
+
+Install & Configure Openjdk (Java) 
+apt install openjdk-11-jdk
+export JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+export PATH=$PATH:$JAVA_HOME/bin
+------
+OR for permanently changes, do the following:
+------
+vim /etc/profile
+#add following lines
+
+JAVA_HOME=/usr/lib/jvm/java-11-openjdk-amd64
+PATH=$PATH:$HOME/bin:$JAVA_HOME/bin
+export JAVA_HOME
+export JRE_HOME
+export PATH
+#logout to update the changes
+------------------------------------------
+FROM openjdk:11
+COPY target/*.jar /usr/src/myapp
+WORKDIR /usr/src/myapp
+RUN javac Main.java
+CMD ["java", "Main"]
+-------------------------------------------
+5th April
+dockerhub-creds
+
+groovy.lang.MissingPropertyException: No such property: docker for class: groovy.lang.Binding
+	at groovy.lang.Binding.getVariable(Binding.java:63)
+
+installed docker pipeline plugin to fix the above error
+----------------------------------
+FROM maven:3.5.4-jdk-8-alpine as maven
+COPY ./pom.xml ./pom.xml
+COPY ./src ./src
+RUN mvn dependency:go-offline -B
+RUN mvn package
+FROM openjdk:11
+WORKDIR /app
+COPY --from=maven target/SimpleJavaProject-*.jar ./SimpleJavaProject.jar
+CMD ["java", "-jar", "./SimpleJavaProject.jar"]
+-----------------------------------
+pipeline {
+        environment {
+          imagename = "shubhradeep/java-sample"
+          registryCredential = 'dockerhub-creds'
+          dockerImage = ''
+    }
+        agent none
+        tools {
+            jdk 'jdk11'
+            maven 'maven3'
+    }
+        stages {
+          stage("build & SonarQube analysis") {
+            agent any
+            steps {
+              withSonarQubeEnv('sonar') {
+                sh 'mvn clean package sonar:sonar'
+              }
+            }
+          }
+          stage("Quality Gate") {
+            steps {
+              timeout(time: 1, unit: 'HOURS') {
+                waitForQualityGate abortPipeline: true
+              }
+            }
+          }
+          stage('Building image') {
+            steps{
+              script {
+                dockerImage = docker.build imagename
+              }
+            }
+          }
+          stage('Deploy Image') {
+            steps{
+              script {
+                docker.withRegistry( 'https://registry.hub.docker.com', registryCredential ) {
+                dockerImage.push("$BUILD_NUMBER")
+                dockerImage.push('latest')
+
+              }
+            }
+          }
+        }
+      }
+      post {
+        always {
+          cleanWs()
+        }
+      }
+    }
+
+ -------------------------------------------------------------------
+
+FROM openjdk:11
+RUN mkdir -p /opt/app/
+COPY target/jb-hello-world-maven-*.jar /opt/app/
+WORKDIR /opt/app/
+CMD ["java", "-jar", "jb-hello-world-maven-*.jar"]
+-----------------------------------
+FROM openjdk:11
+RUN mkdir -p /opt/app/
+WORKDIR /opt/app/
+COPY dockerhub-test/. .
+CMD ["java", "-jar", "*.jar"]
+
+docker build -t dockerhub-test-shubhradeep dockerhub-test/
+docker pull shubhradeepghosh23/devops-project:latest
+----------------------------------------
+6th April
+Goal: add final jenkinsfile pipeline stage of deploying java app to EKS & sending notification email in post build stage
+
+install ssh agent plugin in jenkins
+pipeline syntax tool > ssh agent > add credentials: select "SSH Username with Private Key" > Under Private Key section, under enter directly, paste private key.
+---------------------------
+install & configure awscli
+install eksctl & kubectl
+create admin role for ec2 to create eks > attach admin role to ec2
+switch to jenkins user
+-------------------------
+https://www.coachdevops.com/2022/02/create-amazon-eks-cluster-by-eksctl-how.html
+eksctl create cluster --name shubhradeep-eks --region us-east-1 --nodegroup-name shubhradeep-nodes --node-type t3.medium --managed --nodes 1 
+eksctl get cluster --name demo-eks --region us-east-2
+kubectl create deployment nginx --image=nginx
+eksctl delete cluster --name demo-eks --region us-east-2
+-------------------------
+install kubernetes cli plugin in jenkins
+sudo cat /var/lib/jenkins/.kube/config
+save the content of above command on a new file
+manage jenkins > Global Credentials > Add Credentials > secret file > upload the above file
+
+ stage('K8S Deploy') {
+   steps{   
+     script {
+       withKubeConfig([credentialsId: 'eks-shubhradeep', serverUrl: '']) {
+       sh ('kubectl apply -f eks-deploy-k8s.yaml')
+         }
+       }
+     }
+   }
+access the app through web browser http://loadbalancer_ip
+
+Configure Jenkins Email Notification 
+https://www.edureka.co/blog/email-notification-in-jenkins/
+https://stackoverflow.com/questions/39720225/send-an-email-on-jenkins-pipeline-failure
+
+manage jenkins> configure systems > Under "Extended Email Notification" in smtp field, enter "smtp.gmail.com" > check "Use SMTP Authentication" & provide gmail username & password > check SSL > SMTP port 465 > Configure the Default content
+> Save
+------------------------------
+/var/lib/jenkins/.kube/config
+
+jenkins@ip-172-31-90-204:~$ cat /var/lib/jenkins/.kube/config
+apiVersion: v1
+clusters:
+- cluster:
+    certificate-authority-data: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM1ekNDQWMrZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFWTVJNd0VRWURWUVFERXdwcmRXSmwKY201bGRHVnpNQjRYRFRJeU1EUXdOakV4TkRjeE1Wb1hEVE15TURRd016RXhORGN4TVZvd0ZURVRNQkVHQTFVRQpBeE1LYTNWaVpYSnVaWFJsY3pDQ0FTSXdEUVlKS29aSWh2Y05BUUVCQlFBRGdnRVBBRENDQVFvQ2dnRUJBTG5LClpzdXk2UVU5TmlHcjUrclVtRTFDdjJScStTZ1QrdFQvNGwrOXZ4VmR3NzVVamR5em9FVUYzdjhEY1VMazFlOUoKUFJHb1ZyS3NZYTRydE5QQ0JmbGk1MitNREtXRE0vTWVxbFdTK1FPZndBemhWOUJCbHJ0YXI5am5uSGFSZC9PMQo5andHdHhqckN4RE5RODFhOThnSnl6RlhCYzhtQzlBUUNXWHVsWWZDVHFWS2k4dEh2a0RGM1lqMkIvOTBjdFM5ClJxR2NlTGdkeGZoQXdzVkJ3ZUFXTVdnVXl4V3lYcGpzK0tWelVVVTJQVHd0NGRyR0tTR21nN1dnV2ZHd2IwTWgKWXZyRXg2TUIxL0lMbDdBZlV0cC9WYm1lQjBHUWVYcTlCenlqQXVZWkJUMTNOVmZIN0xEbzdtTC9CRk1nRDVUNAp1NHpBNitQM0YwRnpCSXVWK2FjQ0F3RUFBYU5DTUVBd0RnWURWUjBQQVFIL0JBUURBZ0trTUE4R0ExVWRFd0VCCi93UUZNQU1CQWY4d0hRWURWUjBPQkJZRUZCd3VjclFHck9aRXI2dVd3Z2dST2tmcmczaU5NQTBHQ1NxR1NJYjMKRFFFQkN3VUFBNElCQVFCMyszcVZ5VUkrSzJaQnVnb1FmN29EeWpiZElXMGllZE1hZkRVeUVJcUZaZk40anNzNQppTUxhTlJQQXkwSDRBbElRSUJYeGtRM1Bwa2hCWCtxcmk4S0F3N1N2aDNQUU1JM3IwdUtmc05wN1dhSCsxVHZTCis1RncyR0tRNmJ3bHQySDEvZHZ6NFNUNGhiK1oyWEtuOGEzZ2hmcWp6NVpneDNHVTUwLzFJekkrSnNWRzA0eVoKS1J6MjlzeGpIbFRYWHc5OGhvNlMzT3Q2RVZsYURXMTlSLzhHVi9DdWI3Zms3OUkzZy9sMktKcjZzVFBTQ010OQpFdk5tZzJvWlJ4eG5nM21IL0tnRjd6SUMvRDlZNGRCS2l3S292NzNBTFJGUTJJY01EanZTVDBNanhGa2FYeGkzCkNTSUx4ZFUrNXcwR1p0RTFQVVRKcWhnbGdTVTJqKzNrS3VuUQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    server: https://A5E906BF009F43E00B1F6E8E9BE986D8.gr7.us-east-1.eks.amazonaws.com
+  name: shubhradeep-eks.us-east-1.eksctl.io
+contexts:
+- context:
+    cluster: shubhradeep-eks.us-east-1.eksctl.io
+    user: i-039ee05f1792c0e2a@shubhradeep-eks.us-east-1.eksctl.io
+  name: i-039ee05f1792c0e2a@shubhradeep-eks.us-east-1.eksctl.io
+current-context: i-039ee05f1792c0e2a@shubhradeep-eks.us-east-1.eksctl.io
+kind: Config
+preferences: {}
+users:
+- name: i-039ee05f1792c0e2a@shubhradeep-eks.us-east-1.eksctl.io
+  user:
+    exec:
+      apiVersion: client.authentication.k8s.io/v1alpha1
+      args:
+      - eks
+      - get-token
+      - --cluster-name
+      - shubhradeep-eks
+      - --region
+      - us-east-1
+      command: aws
+      env:
+      - name: AWS_STS_REGIONAL_ENDPOINTS
+        value: regional
+      provideClusterInfo: false
+------------------------------------------------
+9th April - Upgrade EKS worker nodes to medium - no go as it didnt work
+https://aws.amazon.com/premiumsupport/knowledge-center/eks-pod-status-troubleshooting/
+
+ post {
+		always {
+			mail bcc: '', body: "<br>Project: ${env.JOB_NAME} <br>Build Number: ${env.BUILD_NUMBER} <br> URL de build: ${env.BUILD_URL}", cc: '', charset: 'UTF-8', from: '', mimeType: 'text/html', replyTo: '', subject: "${currentBuild.result} CI: Project name -> ${env.JOB_NAME}", to: "deekshith.snsep@gmail.com";  
+		 }
+	   }
+-------------------------------------------------------------------------
+#working code
+always {
+            emailext body: '$PROJECT_NAME - Build # $BUILD_NUMBER - $BUILD_STATUS! \n Check console output at $BUILD_URL to view the results.', recipientProviders: [[$class: 'DevelopersRecipientProvider'], [$class: 'RequesterRecipientProvider']], subject: '$PROJECT_NAME - Build # $BUILD_NUMBER - $BUILD_STATUS!'
+        }
+--------------------------------------------------------------------------
+manage jenkins > configure systems > Email notification > enter the details like SMTP server, select checkbox "Use SMTP authentication", username & password, select checkbox "Use SSL, port 465, select checkbox "Test configuration by sending test email", enter your email where test mail should be sent, click "Test Configuration".
+ab9c36cede9ba45ebb3afe04dfa4dadd-1171579923.us-east-1.elb.amazonaws.com
+ab9c36cede9ba45ebb3afe04dfa4dadd-1171579923.us-east-1.elb.amazonaws.com/greeting
+ab9c36cede9ba45ebb3afe04dfa4dadd-1171579923.us-east-1.elb.amazonaws.com
+
+strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+ 
+kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.4.1/docs/examples/2048/2048_full.yaml
+
+https://devopscube.com/configure-ssl-jenkins/
+https://www.cloudbooklet.com/how-to-install-jenkins-on-ubuntu-20-04-with-nginx-and-ssl/
+
+withKubeConfig([credentialsId: 'eks-shubhradeep', serverUrl: ''])
+----------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: springboot-app
+    k8s-app: springboot-app
+  name: springboot-app
+spec:
+  ports:
+  - name: http
+    port: 80
+    protocol: TCP
+    targetPort: 8085
+  type: LoadBalancer
+  selector:
+    app: springboot-app
+---------------------------------
+
+Extended E-mail Notification 
+- SMTP server: smtp.gmail.com
+- SMTP Port: 465
+- Default Recipients: <your-email@email.com>
+- Tick/Select the Checkbox "Allow Sending to unregistered users" > Save
+---------------------------------
+docker login -u shubhradeepghosh23 -p ******** https://registry.hub.docker.com
+docker tag shubhradeepghosh23/test-app registry.hub.docker.com/shubhradeepghosh23/test-app:6
+docker push registry.hub.docker.com/shubhradeepghosh23/test-app:latest
+docker run --privileged -p 8085:8085 shubhradeepghosh23/test-app
+--------------------------------------------
+jfrog artifactory integrated with jenkins pipeline
+
+For Monitoring: https://github.com/javahometech/kubernetes/tree/master/monitoring
+get kubernetes & other tech examples from https://github.com/javahometech
+---------------------------------------
+## dockerfile to create nginx images
+nginx.conf
+----------
+user  nginx;
+worker_processes  1;
+error_log  /var/log/nginx/error.log warn;
+pid        /var/run/nginx.pid;
+events {
+    worker_connections  1024;
+}
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log  /var/log/nginx/access.log  main;
+    server {
+        listen 80;
+         
+         location = /status {
+             access_log off;
+             default_type text/plain;
+             add_header Content-Type text/plain;
+             return 200 "alive";
+        }
+        
+         location / {
+            gzip off;
+            root /usr/share/nginx/html/;
+            index  index.html;
+        }
+        
+        location ~* \.(js|jpg|png|css)$ {
+            root /usr/share/nginx/html/;
+        }
+    } 
+    sendfile        on;
+    keepalive_timeout  65;
+}
+------------------------------------------------
+docker rmi -f $(docker images -aq)   ##Removes all docker images
+docker build -t html-nginx .
+docker image ls
+docker run -d -p 5678:5678 html-nginx
+docker login --username=shubhradeepghosh23  ##Enter dockerhub password when prompted
+docker images
+docker tag <Image-ID> shubhradeepghosh23/html-website-nginx:firstupload
+docker push shubhradeepghosh23/html-website-nginx:firstupload  #Verify on dockerhub if the image has been uploaded
+## change index.html content
+docker tag <Image-ID> shubhradeepghosh23/html-website-nginx:Version2
+-------------------------------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:firstupload
+        name: my-app
+        ports:
+        - containerPort: 8080
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-service
+spec:
+  type: NodePort
+  selector:
+    app: my-app
+  ports:
+      # By default and for convenience, the `targetPort` is set to the same value as the `port` field.
+    - port: 80
+      targetPort: 80
+      # Optional field
+      # By default and for convenience, the Kubernetes control plane will allocate a port from a range (default: 30000-32767)
+      nodePort: 30007
+---
+## https://matthewpalmer.net/kubernetes-app-developer/articles/kubernetes-ingress-guide-nginx-example.html
+## Ingress details
+Dockerfile
+----------
+FROM nginx:alpine
+COPY ingress/nginx.conf /etc/nginx/nginx.conf
+COPY ingress/index.html /usr/share/nginx/html
+----------
+root@ip-172-31-94-152:~# cat nginx-html/index.html
+<html>
+  <head>
+    <title>My App</title>
+  </head>
+  <body>
+    <h1 style="color:blue;">App Feature Version 2</h1>
+  </body>
+</html>
+----------------
+docker tag 1d61fca25b29 shubhradeepghosh23/html-website-nginx:order
+docker push shubhradeepghosh23/html-website-nginx:order
+docker tag 4c1ca34ce53f shubhradeepghosh23/html-website-nginx:refund
+docker push shubhradeepghosh23/html-website-nginx:refund
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: order
+  template:
+    metadata:
+      labels:
+        app: order
+    spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:order
+        name: order
+        ports:
+        - containerPort: 80
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: order-service
+spec:
+  selector:
+    app: order
+  ports:
+    - port: 5678
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: refund
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+  selector:
+    matchLabels:
+      app: refund
+  template:
+    metadata:
+      labels:
+        app: refund
+    spec:
+      containers:
+      - image: shubhradeepghosh23/html-website-nginx:refund
+        name: refund
+        ports:
+        - containerPort: 80
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: refund-service
+spec:
+  selector:
+    app: refund
+  ports:
+    - port: 5679
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ingress-example
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx-example
+  rules:
+  - host: somedomain.com
+    http:
+      paths:
+      - path: /order
+        pathType: Prefix
+        backend:
+          service: 
+            name: order-service
+            port:
+              number: 5678
+      - path: /refund
+        pathType: Prefix
+        backend:
+          service: 
+            name: refund-service
+            port:
+              number: 5679
+---
+
+#!/bin/bash
+
+service_list=('deployment.apps/order' 'deployment.apps/refund' 'service/order-service' 'service/refund-service')
+for i in "${service_list[@]}"; do kubectl delete $i; done
+-------------------------------------------------------
+ClusterRole/nginx-ingress-app-protect
+nginx-ingress-app-protect
+
+proxy-protocol: "True"
+real-ip-header: "proxy_protocol"
+set-real-ip-from: "0.0.0.0/0"
+--------------------------------------
+https://www.digitalocean.com/community/tutorials/how-to-install-the-apache-web-server-on-ubuntu-20-04
+apt install apache2
+systemctl status apache2
+systemctl enable apache2
+a2ensite 000-default.conf
+apache2ctl configtest
+systemctl restart apache2
+------------------
+#ALB-Ingress on EKS> https://www.nginx.com/blog/deploying-nginx-ingress-controller-on-amazon-eks-how-we-tested/
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: "2048-ingress"
+  namespace: "2048-game"
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+  labels:
+    app: 2048-ingress
+spec:
+  rules:
+    - http:
+        paths:
+          - path: /*
+            pathType: Prefix
+            backend:
+              service:
+                name: "service-2048"
+                port:
+                  number: 80
+---
+NFS & Persistent Volume practical
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ubuntu
+  labels:
+    app: ubuntu
+spec:
+  containers:
+  - name: ubuntu
+    image: ubuntu:latest
+    command: ["/bin/sleep", "3650d"]
+    imagePullPolicy: IfNotPresent
+  restartPolicy: Always
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: pv0003
+spec:
+  capacity:
+    storage: 5Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+  storageClassName: slow
+  mountOptions:
+    - hard
+    - nfsvers
+  nfs:
+    path: /var/nfs/general/
+    server: 172.31.90.121
+---
+nfs server: 172.31.31.46
+k0s-k8-master: 172.31.23.240
+k0s-k8-worker: 172.31.18.73
+---------------------------------------
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx
+spec:
+  containers:
+  - name: nginx
+    image: nginx:1.14.2
+    ports:
+    - containerPort: 80
+---
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

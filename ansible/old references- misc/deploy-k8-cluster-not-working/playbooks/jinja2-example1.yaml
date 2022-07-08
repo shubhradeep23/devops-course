@@ -1,0 +1,17 @@
+- hosts: all-webservers 
+  become: true
+  gather_facts: yes
+  vars_files: vars/jinja2-example1-vars.yaml
+
+  tasks:
+    - name: Demonstrate Jinja2 Functionality with Global Variables
+      debug:
+        msg: "IP adress: {{ ip }} and OS: {{ os_name }}"
+
+- hosts: localhost
+  vars_files: vars/jinja2-example1-vars.yaml
+  tasks:
+    - name: Demonstrate Jinja2 Functionality with Custom Variables
+      debug:
+        msg: "{{ somevar }} {{ anothervar }}"
+    

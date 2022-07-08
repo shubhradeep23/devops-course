@@ -1,0 +1,48 @@
+https://github.com/javahometech/hari-jenkinsfile
+
+ansible to execute playbook on docker-host with jenkins ansible plugin: select 'disable the host SSH key check'
+
+docker-host: 172.31.19.121
+${imagename}:${tag}
+
+ansible-playbook release.yml --extra-vars "image_name=${imagename} tag_name=${tag}"
+ansible.builtin.shell: docker run -d -p 8085:8085 "{{  }}"
+---
+- hosts: docker-host
+  become: true
+  gather_facts: yes
+  tasks:
+    - name: Run docker run command to deploy java app on a container
+      ansible.builtin.shell: docker run -d -p 8085:8085 {{image_name}}:{{tag}}
+        chdir: /root
+---
+ansible-playbook -i hosts docker.yaml --extra-vars "image_name=shubhradeepghosh23/test-app tag=1.0.0"
+
+sh "ansible-playbook -i hosts docker.yaml --extra-vars 'image_name=${imagename} image_tag=${tag}'"
+--------------------------------------
+https://github.com/javahometech/dockeransiblejenkins
+
+root@jenkins-ec2$ ansible --version  ## should output the below path 
+executable location = /usr/local/bin/ansible
+----
+Optional step to automate generating tag from commit id:
+git rev-parse --short HEAD  ## Returns the latest commit id which can be used to automate tagging builds 
+syntax generator: sh: Shell script> copy the above shell script into shell script> check teh box 'Return Standard output'
+In jenkins file, declare a function & a variable within the function.
+----
+stage('Deploy to Java App Docker Host') {
+  steps {
+    ansiblePlaybook credentialsId: 'docker-host', disableHostKeyChecking: true, extras: "-e image_name=${imagename} image_tag=${tag}", installation: 'ansible', inventory: 'ansible/hosts', playbook: 'ansible/docker.yaml'
+  }
+}
+---------
+# Fix free swap space issue on jenkins master, no swap space as in manage jenkins> manage nodes> master node shows 0 bytes free swap space
+$ free   #output shows free swap space: 0 B
+$ free|grep -i Swap
+
+ dd if=/dev/zero of=swapfile bs=1M count=8000
+ mkswap swapfile
+ chown root:root swapfile
+ chmod 600 swapfile
+ swapon swapfile
+---------------------------
